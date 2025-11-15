@@ -42,6 +42,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return ipcRenderer.invoke('clear-authentication');
     },
 
+    // Gmail ラベル一覧取得
+    fetchGmailLabels: () => {
+        return ipcRenderer.invoke('fetch-gmail-labels');
+    },
+
+    // Gmail データ取得
+    fetchGmailData: (query: any) => {
+        return ipcRenderer.invoke('fetch-gmail-data', query);
+    },
+
     // プログレス通知の受信
     onProgress: (callback: (progress: any) => void) => {
         ipcRenderer.on('generation-progress', (event: any, progress: any) => {

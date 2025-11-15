@@ -9,6 +9,8 @@ import {
   checkAuthStatus,
   clearAuthentication
 } from '../services/google/auth.js';
+import { searchEmails, getLabelsList } from '../services/google/gmail.js';
+import type { GmailSearchQuery } from '../types/index.js';
 
 // ESMでの__dirnameの代替
 const __filename = fileURLToPath(import.meta.url);
@@ -204,7 +206,19 @@ function setupIpcHandlers(): void {
   // 設定の保存
   ipcMain.handle('save-settings', async (_event: any, settings: any) => {
     try {
+      // 既存のrefreshTokenを保持
+      const currentGoogle = ConfigManager.get('google');
+      const refreshToken = currentGoogle.refreshToken;
+
+      // 設定を保存
       ConfigManager.setAll(settings);
+
+      // refreshTokenを復元（存在する場合）
+      if (refreshToken) {
+        ConfigManager.setGoogleRefreshToken(refreshToken);
+        console.log('Google認証情報を保持しました');
+      }
+
       console.log('設定を保存しました:', settings);
       return { success: true };
     } catch (error) {
@@ -273,6 +287,34 @@ function setupIpcHandlers(): void {
       return { success: true };
     } catch (error) {
       console.error('認証クリアエラー:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // Gmail ラベル一覧取得
+  ipcMain.handle('fetch-gmail-labels', async () => {
+    try {
+      console.log('Gmail ラベル一覧取得開始');
+      const labels = await getLabelsList();
+      console.log(`${labels.length} 件のラベルを取得しました`);
+      return { success: true, data: labels };
+    } catch (error) {
+      console.error('Gmail ラベル取得エラー:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // Gmail データ取得
+  ipcMain.handle('fetch-gmail-data', async (_event: any, query: GmailSearchQuery) => {
+    try {
+      console.log('Gmail データ取得開始:', query);
+      const emails = await searchEmails(query);
+      console.log(`${emails.length} 件のメールを取得しました`);
+      return { success: true, data: emails };
+    } catch (error) {
+      console.error('Gmail データ取得エラー:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       return { success: false, error: errorMessage };
     }

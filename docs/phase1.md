@@ -78,28 +78,52 @@
 
 ### **Week 2: Google サービス統合**
 
-#### Day 7-8: Google OAuth 2.0 認証
-- [ ] `src/services/google/auth.ts` の実装
+#### Day 7-8: Google OAuth 2.0 認証 ✅
+- [x] `src/services/google/auth.ts` の実装
   - Google OAuth 2.0 フロー実装
   - アクセストークンの取得・更新
-  - リフレッシュトークンの保存・管理
+  - リフレッシュトークンの保存・管理（electron-store使用）
   - 認証状態の確認
-  - 型定義（OAuth2Client, Credentials など）
-- [ ] 設定画面への「Google アカウント連携」ボタン追加
-- [ ] 認証成功時の通知とトークン保存
+  - 型定義（OAuth2Credentials など）
+- [x] 設定画面への「Google アカウント連携」ボタン追加
+- [x] 認証コード入力UI実装
+- [x] 認証成功時の通知とトークン保存
+- [x] 認証解除機能
+- [x] IPC通信の実装
+  - authenticate-google: 認証URL生成とブラウザ起動
+  - process-auth-code: 認証コード処理
+  - check-auth-status: 認証状態確認
+  - clear-authentication: 認証解除
+- [x] .gitignoreにcredentials.json追加
+- [x] credentials.json.exampleの作成
 
-#### Day 9-10: Gmail API 統合
-- [ ] `src/services/google/gmail.ts` の実装
+#### Day 9-10: Gmail API 統合 ✅
+- [x] `src/services/google/gmail.ts` の実装
   - Gmail API クライアント初期化
-  - 指定期間・ラベルでのメール検索
-  - メール本文の取得
-  - 物件情報の抽出（築年数、立地、購入金額）
-  - 型定義（PropertyInfo, EmailData など）
-- [ ] Gmail からのデータ取得テスト
+  - ラベル一覧取得（ユーザー作成ラベルのみ、日本語ソート）
+  - 指定期間・ラベルでのメール検索（ラベル名を引用符で囲んで検索）
+  - メール本文の取得とデコード（Base64 URL-safe対応）
+  - マルチパートメール対応（text/plain優先、text/html代替）
+  - HTMLタグ除去とエンティティデコード
+  - メールデータをそのまま返す（物件情報抽出はGeminiに委譲）
+  - 型定義（EmailData, GmailSearchQuery）
+- [x] IPC通信の実装
+  - fetch-gmail-labels: ラベル一覧取得
+  - fetch-gmail-data: メール検索と取得
+- [x] 設定画面のUI改善
+  - Gmailラベルをプルダウン選択式に変更
+  - Gmail接続テストボタンの追加
+  - テスト結果の表示（件名、送信者、本文プレビュー）
+- [x] 認証情報の永続化
+  - 設定保存時にリフレッシュトークンを保持
+- [x] Gmail からのデータ取得テスト
 
 #### Day 11-12: Gemini API 統合
 - [ ] `src/services/google/gemini.ts` の実装
   - Gemini 2.5 Pro クライアント初期化
+  - **メール本文から物件情報を抽出する機能**
+    - 構造化データとして抽出（JSON形式）
+    - 物件名、住所、価格、利回り、特記事項など
   - プロンプト生成ロジック
   - 議事録コンテンツ生成
     - 議題の自動生成
@@ -110,6 +134,7 @@
   - 代表取締役社長: 高い知識レベル、専門用語使用
   - 非常勤役員: 初心者レベル、平易な言葉
 - [ ] Gemini API のテストとプロンプト調整
+- [ ] 物件情報抽出のテスト
 
 #### Day 13: Google Docs/Drive API 統合
 - [ ] `src/services/google/docs.ts` の実装
@@ -1160,4 +1185,38 @@ webPreferences: {
 
 ---
 
-**次のステップ**: このドキュメントに基づいて Week 1 の実装を開始してください。
+## ✅ Week 2 完了チェックリスト
+
+### Google OAuth 2.0 認証（Day 7-8）
+- [x] OAuth 2.0 認証モジュールの実装
+- [x] 認証URL生成とブラウザ起動
+- [x] 認証コード処理
+- [x] リフレッシュトークンの保存（electron-store）
+- [x] 認証状態確認機能
+- [x] 認証解除機能
+- [x] 設定画面の認証UI
+- [x] credentials.json.exampleの提供
+
+### Gmail API 統合（Day 9-10）
+- [ ] Gmail API クライアント初期化
+- [ ] ラベルによるメール検索
+- [ ] 期間指定検索
+- [ ] メール本文の取得とデコード
+- [ ] IPC通信の実装
+
+### Gemini API 統合（Day 11-12）
+- [ ] Gemini API クライアント初期化
+- [ ] メール本文から物件情報を抽出
+- [ ] 議事録コンテンツ生成
+- [ ] プロンプトエンジニアリング
+- [ ] JSONレスポンスのパース
+
+### Google Docs/Drive API 統合（Day 13）
+- [ ] Google Docs ドキュメント作成
+- [ ] 議事録フォーマットの適用
+- [ ] Google Drive フォルダー管理
+- [ ] ファイルの保存と移動
+
+---
+
+**次のステップ**: Week 2 Day 9-10 の Gmail API 統合を開始してください。

@@ -71,6 +71,9 @@ function setupNavigation(): void {
 // 設定の読み込み
 async function loadSettings(): Promise<void> {
     try {
+        // Gmailラベル一覧を読み込む
+        await loadGmailLabels();
+
         // Electronから設定を読み込む
         if (window.electronAPI?.loadSettings) {
             const settings = await window.electronAPI.loadSettings();
@@ -148,6 +151,10 @@ function setupEventListeners(): void {
     const clearAuthBtn = document.getElementById('clearAuthBtn');
     clearAuthBtn?.addEventListener('click', handleClearAuth);
 
+    // Gmail接続テストボタン
+    const testGmailBtn = document.getElementById('testGmailBtn');
+    testGmailBtn?.addEventListener('click', handleTestGmail);
+
     // 保存ボタン
     const saveBtn = document.getElementById('saveBtn');
     saveBtn?.addEventListener('click', handleSaveSettings);
@@ -158,6 +165,46 @@ function setupEventListeners(): void {
 
     // 初期認証状態をチェック
     checkInitialAuthStatus();
+}
+
+// Gmailラベル一覧を読み込む
+async function loadGmailLabels(): Promise<void> {
+    if (!window.electronAPI?.fetchGmailLabels) return;
+
+    try {
+        // 認証状態を確認
+        const authStatus = await window.electronAPI.checkAuthStatus();
+        if (!authStatus.authenticated) {
+            console.log('未認証のため、Gmailラベルを読み込めません');
+            return;
+        }
+
+        const result = await window.electronAPI.fetchGmailLabels();
+
+        if (result.success && result.data) {
+            const selectElement = document.getElementById('gmailLabel') as HTMLSelectElement;
+            if (!selectElement) return;
+
+            // 既存のオプションをクリア（最初の「選択してください」は残す）
+            while (selectElement.options.length > 1) {
+                selectElement.remove(1);
+            }
+
+            // ラベルをオプションとして追加
+            result.data.forEach(label => {
+                const option = document.createElement('option');
+                option.value = label.name;
+                option.textContent = label.name;
+                selectElement.appendChild(option);
+            });
+
+            console.log(`${result.data.length} 件のラベルを読み込みました`);
+        } else {
+            console.error('Gmailラベル取得エラー:', result.error);
+        }
+    } catch (error) {
+        console.error('Gmailラベル読み込みエラー:', error);
+    }
 }
 
 // 初期認証状態をチェック
@@ -236,6 +283,9 @@ async function handleSubmitAuthCode(): Promise<void> {
                 // 入力欄をクリア
                 authCodeInput.value = '';
 
+                // Gmailラベル一覧を読み込む
+                await loadGmailLabels();
+
                 alert('Googleアカウントとの連携が完了しました。');
             } else {
                 alert('認証コードの処理に失敗しました。\n' + (result.error || ''));
@@ -306,6 +356,122 @@ function updateAuthStatus(connected: boolean): void {
         if (authBtn) authBtn.style.display = 'inline-block';
         if (clearAuthBtn) clearAuthBtn.style.display = 'none';
     }
+}
+
+// Gmail接続テスト
+async function handleTestGmail(): Promise<void> {
+    const testBtn = document.getElementById('testGmailBtn') as HTMLButtonElement;
+    const resultsDiv = document.getElementById('gmailTestResults');
+    const contentDiv = document.getElementById('gmailTestContent');
+
+    if (!window.electronAPI?.fetchGmailData) {
+        alert('Gmail API機能が利用できません。');
+        return;
+    }
+
+    // 認証状態を確認
+    try {
+        const authStatus = await window.electronAPI.checkAuthStatus();
+        if (!authStatus.authenticated) {
+            alert('Googleアカウントと連携していません。\n先に認証を完了してください。');
+            return;
+        }
+    } catch (error) {
+        alert('認証状態の確認に失敗しました。');
+        return;
+    }
+
+    try {
+        testBtn.disabled = true;
+        testBtn.textContent = 'テスト中...';
+
+        // 結果エリアを表示
+        if (resultsDiv) resultsDiv.style.display = 'block';
+        if (contentDiv) contentDiv.innerHTML = '<p>メールを取得中...</p>';
+
+        // 現在の設定値を取得
+        const gmailLabel = getInputValue('gmailLabel');
+
+        // テスト用クエリ（過去1日間）
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const query = {
+            startDate: yesterday,
+            endDate: today,
+            label: gmailLabel,
+            maxResults: 10
+        };
+
+        console.log('Gmail テストクエリ:', query);
+
+        const result = await window.electronAPI.fetchGmailData(query);
+
+        if (result.success && result.data) {
+            const emails = result.data;
+
+            if (emails.length === 0) {
+                if (contentDiv) {
+                    contentDiv.innerHTML = `
+                        <p style="color: #666;">✓ 接続成功</p>
+                        <p style="color: #666;">過去1日間にラベル「${gmailLabel}」のメールは見つかりませんでした。</p>
+                    `;
+                }
+            } else {
+                let html = `<p style="color: #28a745; font-weight: 600;">✓ 接続成功</p>`;
+                html += `<p>${emails.length} 件のメールを取得しました</p>`;
+                html += '<div style="margin-top: 12px;">';
+
+                emails.slice(0, 5).forEach((email: any, index: number) => {
+                    const subject = email.subject || '(件名なし)';
+                    const from = email.from || '(送信者不明)';
+                    const bodyPreview = email.body ? email.body.substring(0, 100) + '...' : '';
+
+                    html += `
+                        <div style="margin-bottom: 12px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #007bff;">
+                            <div style="font-weight: 600; margin-bottom: 4px;">${index + 1}. ${escapeHtml(subject)}</div>
+                            <div style="font-size: 12px; color: #666; margin-bottom: 4px;">From: ${escapeHtml(from)}</div>
+                            <div style="font-size: 12px; color: #888;">${escapeHtml(bodyPreview)}</div>
+                        </div>
+                    `;
+                });
+
+                if (emails.length > 5) {
+                    html += `<p style="font-size: 12px; color: #666;">...他 ${emails.length - 5} 件</p>`;
+                }
+
+                html += '</div>';
+
+                if (contentDiv) contentDiv.innerHTML = html;
+            }
+        } else {
+            if (contentDiv) {
+                contentDiv.innerHTML = `
+                    <p style="color: #dc3545; font-weight: 600;">✗ エラー</p>
+                    <p>${result.error || '不明なエラーが発生しました'}</p>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('Gmail テストエラー:', error);
+        if (contentDiv) {
+            contentDiv.innerHTML = `
+                <p style="color: #dc3545; font-weight: 600;">✗ エラー</p>
+                <p>メール取得中にエラーが発生しました</p>
+            `;
+        }
+    } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = 'Gmail接続をテスト';
+    }
+}
+
+// HTMLエスケープ
+function escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // 設定の保存

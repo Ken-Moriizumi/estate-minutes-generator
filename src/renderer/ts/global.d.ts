@@ -11,6 +11,8 @@ interface ElectronAPI {
     processAuthCode: (code: string) => Promise<{ success: boolean; error?: string }>;
     checkAuthStatus: () => Promise<{ authenticated: boolean }>;
     clearAuthentication: () => Promise<{ success: boolean; error?: string }>;
+    fetchGmailLabels: () => Promise<{ success: boolean; data?: Array<{ id: string; name: string }>; error?: string }>;
+    fetchGmailData: (query: any) => Promise<{ success: boolean; data?: any[]; error?: string }>;
     onProgress: (callback: (progress: any) => void) => void;
     onComplete: (callback: (result: any) => void) => void;
     onError: (callback: (error: any) => void) => void;
