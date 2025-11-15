@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+    <title>不動産賃貸業 議事録自動生成ツール</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="../../node_modules/flatpickr/dist/flatpickr.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">不動産賃貸業 議事録自動生成ツール</h1>
+                <div class="phase-badge">Phase 1: 物件検討議事録</div>
+            </div>
+            <button class="settings-btn" id="settingsBtn" title="設定">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M12 1v6m0 6v6m4.22-13.22l4.24 4.24M1.54 1.54l4.24 4.24M20.46 20.46l-4.24-4.24M1.54 20.46l4.24-4.24"></path>
+                </svg>
+            </button>
+        </header>
+
+        <!-- メインコンテンツ -->
+        <main class="main-content">
+            <form id="minutesForm" class="minutes-form">
+                <!-- 基本情報設定セクション -->
+                <section class="form-section">
+                    <h2 class="section-title">📝 基本情報設定</h2>
+
+                    <div class="form-group">
+                        <label class="form-label">開催場所</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="location" value="tokyo" checked>
+                                <span class="radio-custom"></span>
+                                <span>東京事務所</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="location" value="nagano">
+                                <span class="radio-custom"></span>
+                                <span>長野事務所</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="location" value="online">
+                                <span class="radio-custom"></span>
+                                <span>オンライン</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">参加者</label>
+                        <div class="participants-container" id="participantsContainer">
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="participants" value="president" checked>
+                                <span class="checkbox-custom"></span>
+                                <span>代表取締役社長</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="participants" value="wife" checked>
+                                <span class="checkbox-custom"></span>
+                                <span>取締役（妻）</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="participants" value="chairman">
+                                <span class="checkbox-custom"></span>
+                                <span>取締役会長（父）</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="participants" value="mother">
+                                <span class="checkbox-custom"></span>
+                                <span>取締役（母）</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" name="participants" value="sister">
+                                <span class="checkbox-custom"></span>
+                                <span>取締役（姉）</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="meetingDate" class="form-label">開催日</label>
+                            <input type="text" id="meetingDate" name="meetingDate" class="form-input datepicker" placeholder="日付を選択">
+                        </div>
+                        <div class="form-group">
+                            <label for="startTime" class="form-label">開始時刻</label>
+                            <input type="text" id="startTime" name="startTime" class="form-input timepicker" placeholder="14:00">
+                        </div>
+                        <div class="form-group">
+                            <label for="endTime" class="form-label">終了時刻</label>
+                            <input type="text" id="endTime" name="endTime" class="form-input timepicker" placeholder="15:00">
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 物件情報取得設定セクション -->
+                <section class="form-section">
+                    <h2 class="section-title">📧 物件情報取得設定</h2>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="gmailStartDate" class="form-label">Gmail取得期間（開始）</label>
+                            <input type="text" id="gmailStartDate" name="gmailStartDate" class="form-input datepicker" placeholder="開始日を選択">
+                        </div>
+                        <div class="form-group">
+                            <label for="gmailEndDate" class="form-label">Gmail取得期間（終了）</label>
+                            <input type="text" id="gmailEndDate" name="gmailEndDate" class="form-input datepicker" placeholder="終了日を選択">
+                        </div>
+                    </div>
+
+                    <div class="info-box">
+                        <p>💡 Gmailの「物件情報」ラベルが付いたメールから物件データを取得します。</p>
+                        <p>設定画面でGmailラベルを変更できます。</p>
+                    </div>
+                </section>
+
+                <!-- アクションボタン -->
+                <div class="action-buttons">
+                    <button type="button" class="btn btn-secondary" id="resetBtn">
+                        <span>リセット</span>
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="generateBtn">
+                        <span>議事録を作成</span>
+                    </button>
+                </div>
+            </form>
+        </main>
+
+        <!-- プログレス表示（生成中に表示） -->
+        <div class="progress-overlay" id="progressOverlay" style="display: none;">
+            <div class="progress-container">
+                <h3 class="progress-title">議事録を生成中...</h3>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <p class="progress-message" id="progressMessage">Gmail から物件情報を取得しています...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="../../node_modules/flatpickr/dist/flatpickr.min.js"></script>
+    <script src="../../node_modules/flatpickr/dist/l10n/ja.js"></script>
+    <script src="../../dist/renderer/ts/main.js"></script>
+</body>
+</html>

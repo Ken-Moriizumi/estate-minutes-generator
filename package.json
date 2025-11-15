@@ -1,0 +1,51 @@
+{
+  "name": "estate-minutes-generator",
+  "version": "1.0.0",
+  "description": "不動産賃貸業法人向け議事録自動生成ツール",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "start": "npm run build && electron .",
+    "dev": "npm run build && electron . --dev",
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "build-win": "npm run build && electron-builder --win",
+    "build-mac": "npm run build && electron-builder --mac",
+    "package": "npm run build && electron-builder --win --mac"
+  },
+  "keywords": ["electron", "minutes", "real-estate", "typescript"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@google-cloud/local-auth": "^3.0.0",
+    "googleapis": "^144.0.0",
+    "flatpickr": "^4.6.13",
+    "electron-store": "^10.0.0",
+    "dotenv": "^16.4.0"
+  },
+  "build": {
+    "appId": "com.example.estate-minutes",
+    "productName": "議事録自動生成ツール",
+    "files": [
+      "dist/**/*",
+      "src/renderer/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "build"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    }
+  }
+}

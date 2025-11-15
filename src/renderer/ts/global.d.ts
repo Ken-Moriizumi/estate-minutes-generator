@@ -1,0 +1,19 @@
+// Flatpickrの型定義
+declare const flatpickr: any;
+
+// Electron APIの型定義
+interface ElectronAPI {
+    openSettings: () => void;
+    generateMinutes: (request: any) => Promise<any>;
+    loadSettings: () => Promise<any>;
+    saveSettings: (settings: any) => Promise<{ success: boolean; error?: string }>;
+    authenticateGoogle: () => Promise<{ success: boolean; error?: string }>;
+    onProgress: (callback: (progress: any) => void) => void;
+    onComplete: (callback: (result: any) => void) => void;
+    onError: (callback: (error: any) => void) => void;
+}
+
+// WindowインターフェースにElectron APIを追加
+interface Window {
+    electronAPI?: ElectronAPI;
+}

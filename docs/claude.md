@@ -359,7 +359,7 @@ estate-minutes-generator/
 │   │   ├── youtube/      # YouTube処理
 │   │   └── scraper/      # 楽待スクレイピング
 │   ├── types/            # 型定義
-│   │   └── index.d.ts    # 共通型定義
+│   │   └── index.d.ts    # 共通型定義（詳細は15.8参照）
 │   └── utils/            # ユーティリティ
 │       ├── config.ts     # 設定管理
 │       └── logger.ts     # ログ出力
@@ -431,6 +431,8 @@ config.json
     "dev": "npm run build && electron . --dev",
     "build": "tsc",
     "watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "postinstall": "npm run build",
     "build-win": "npm run build && electron-builder --win",
     "build-mac": "npm run build && electron-builder --mac",
     "package": "npm run build && electron-builder --win --mac"
@@ -439,19 +441,18 @@ config.json
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "electron": "^27.0.0",
-    "electron-builder": "^24.0.0",
-    "typescript": "^5.0.0",
-    "@types/node": "^20.0.0",
-    "@types/electron": "^1.6.10"
+    "electron": "^31.0.0",
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
+    "@google/generative-ai": "^0.31.0",
     "@google-cloud/local-auth": "^3.0.0",
-    "googleapis": "^128.0.0",
-    "flatpickr": "^4.6.0",
-    "electron-store": "^8.1.0",
-    "dotenv": "^16.0.0"
+    "googleapis": "^144.0.0",
+    "flatpickr": "^4.6.13",
+    "electron-store": "^10.0.0",
+    "dotenv": "^16.4.0"
   },
   "build": {
     "appId": "com.example.estate-minutes",
@@ -474,11 +475,12 @@ config.json
 }
 ```
 
+注: `@types/electron`は不要（Electron本体に型定義が含まれています）
+
 ※ Phase 2で追加予定の依存関係：
 - puppeteer（楽待スクレイピング用）
 - youtube-transcript（字幕取得用）
 - ytdl-core（動画情報取得用）
-- @types/puppeteer（型定義）
 
 ### 15.5 tsconfig.json（TypeScript設定）
 
@@ -487,7 +489,7 @@ config.json
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",
-    "lib": ["ES2020"],
+    "lib": ["ES2020", "DOM"],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
@@ -496,19 +498,23 @@ config.json
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
-    "types": ["node", "electron"]
+    "types": ["node"]
   },
   "include": [
-    "src/**/*"
+    "src/**/*.ts",
+    "src/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "build",
-    "src/renderer/**/*"
+    "**/*.html",
+    "**/*.css"
   ]
 }
 ```
+
+注: レンダラープロセスのTypeScriptファイルも含めるよう修正しました。
 
 ### 15.6 Claude Codeを使用した開発手順
 
@@ -582,10 +588,182 @@ Phase 2（将来）: 拡張機能
 3. プロジェクトを選択してAPIキーを生成
 4. Gemini 2.5 Proモデルへのアクセスを確認
 
-### 15.7 開発時の注意事項
+### 15.7 初期セットアップと環境変数
+
+#### 初回セットアップ手順
+```bash
+# 1. プロジェクトのクローン/作成
+git clone [repository-url] estate-minutes-generator
+cd estate-minutes-generator
+
+# 2. 依存関係のインストール（postinstallでビルドも自動実行）
+npm install
+
+# 3. 環境変数の設定
+cp .env.example .env
+# .envファイルを編集してAPIキーを設定
+
+# 4. 開発モードで起動
+npm run dev
+```
+
+#### メインプロセスでの環境変数読み込み
+```typescript
+// src/main/index.ts
+import { app, BrowserWindow, ipcMain } from 'electron';
+import * as path from 'path';
+import * as dotenv from 'dotenv';
+
+// 環境変数の読み込み（最初に実行）
+dotenv.config();
+
+// 開発モードの判定
+const isDev = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
+```
+
+### 15.8 型定義ファイル（src/types/index.d.ts）
+
+```typescript
+// 物件情報の型定義
+export interface PropertyInfo {
+  buildingAge: number;      // 築年数
+  location: string;         // 立地（住所）
+  price: number;           // 購入金額
+  type?: string;           // 物件タイプ（マンション、戸建てなど）
+  area?: number;           // 面積（㎡）
+  description?: string;    // その他の情報
+}
+
+// メールデータの型定義
+export interface EmailData {
+  id: string;
+  subject: string;
+  from: string;
+  date: Date;
+  body: string;
+  propertyInfo?: PropertyInfo;
+}
+
+// 議事録コンテンツの型定義
+export interface MinutesContent {
+  date: Date;
+  startTime: string;
+  endTime: string;
+  location: 'tokyo' | 'nagano' | 'online';
+  participants: Participant[];
+  agenda: string[];
+  content: DiscussionItem[];
+  conclusion: string;
+}
+
+// 参加者の型定義
+export interface Participant {
+  name: string;
+  role: string;
+  profile?: ParticipantProfile;
+}
+
+// 参加者プロファイルの型定義
+export interface ParticipantProfile {
+  knowledgeLevel: 'high' | 'beginner';
+  style: 'professional' | 'casual' | 'senior_casual' | 'very_casual';
+}
+
+// 議論項目の型定義
+export interface DiscussionItem {
+  topic: string;
+  propertyInfo?: PropertyInfo;
+  opinions: ParticipantOpinion[];
+}
+
+// 参加者意見の型定義
+export interface ParticipantOpinion {
+  participantName: string;
+  opinion: string;
+}
+
+// 設定の型定義
+export interface AppConfig {
+  company: {
+    name: string;
+  };
+  defaults: {
+    location: 'tokyo' | 'nagano' | 'online';
+    startTime: string;
+    endTime: string;
+    retrievalPeriod: number;
+  };
+  google: {
+    driveFolderPath: string;
+    gmailLabel: string;
+    refreshToken?: string;
+  };
+  participants: {
+    president: string;
+    wife: string;
+    chairman: string;
+    mother: string;
+    sister: string;
+  };
+}
+
+// IPC通信の型定義
+export interface IpcRequest<T = any> {
+  channel: string;
+  data: T;
+}
+
+export interface IpcResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+// 議事録生成リクエストの型定義
+export interface GenerateMinutesRequest {
+  date: Date;
+  startTime: string;
+  endTime: string;
+  location: 'tokyo' | 'nagano' | 'online';
+  participants: string[];
+  gmailStartDate: Date;
+  gmailEndDate: Date;
+}
+
+// 議事録生成結果の型定義
+export interface GenerateMinutesResult {
+  documentId: string;
+  documentUrl: string;
+  fileName: string;
+  createdAt: Date;
+}
+
+// バリデーション結果の型定義
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+}
+
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
+// ログエントリの型定義
+export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+
+export interface LogEntry {
+  level: LogLevel;
+  timestamp: Date;
+  message: string;
+  data?: any;
+}
+```
+
+### 15.9 開発時の注意事項
 
 1. **エラーハンドリング**
-   - API制限エラーの適切な処理
+   - API制限エラーの適切な処理（リトライ機構の実装）
    - ネットワークエラーの再試行機能
    - ユーザーへの分かりやすいエラー表示
 

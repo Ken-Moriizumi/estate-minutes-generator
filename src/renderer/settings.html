@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+    <title>設定 - 議事録自動生成ツール</title>
+    <link rel="stylesheet" href="css/settings.css">
+</head>
+<body>
+    <div class="settings-container">
+        <!-- サイドバー -->
+        <aside class="sidebar">
+            <h2 class="sidebar-title">設定</h2>
+            <nav class="sidebar-nav">
+                <a href="#basic" class="nav-item active" data-section="basic">
+                    <span class="nav-icon">⚙️</span>
+                    <span>基本設定</span>
+                </a>
+                <a href="#google" class="nav-item" data-section="google">
+                    <span class="nav-icon">🔗</span>
+                    <span>Google連携</span>
+                </a>
+                <a href="#participants" class="nav-item" data-section="participants">
+                    <span class="nav-icon">👥</span>
+                    <span>参加者情報</span>
+                </a>
+                <a href="#youtube" class="nav-item disabled" data-section="youtube">
+                    <span class="nav-icon">📺</span>
+                    <span>YouTube設定</span>
+                    <span class="phase-badge phase-2">Phase 2</span>
+                </a>
+                <a href="#rakumachi" class="nav-item disabled" data-section="rakumachi">
+                    <span class="nav-icon">🏢</span>
+                    <span>楽待設定</span>
+                    <span class="phase-badge phase-2">Phase 2</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- メインコンテンツ -->
+        <main class="main-content">
+            <!-- 基本設定 -->
+            <section id="basic" class="settings-section active">
+                <h2 class="section-title">基本設定</h2>
+
+                <div class="settings-card">
+                    <h3 class="card-title">会社情報</h3>
+                    <div class="form-group">
+                        <label for="companyName" class="form-label">会社名</label>
+                        <input type="text" id="companyName" class="form-input" placeholder="株式会社〇〇〇〇">
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3 class="card-title">デフォルト設定</h3>
+                    <div class="form-group">
+                        <label for="defaultLocation" class="form-label">デフォルト開催場所</label>
+                        <select id="defaultLocation" class="form-select">
+                            <option value="tokyo">東京事務所</option>
+                            <option value="nagano">長野事務所</option>
+                            <option value="online">オンライン</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="defaultStartTime" class="form-label">デフォルト開始時刻</label>
+                            <input type="time" id="defaultStartTime" class="form-input" value="14:00">
+                        </div>
+                        <div class="form-group">
+                            <label for="defaultEndTime" class="form-label">デフォルト終了時刻</label>
+                            <input type="time" id="defaultEndTime" class="form-input" value="15:00">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="retrievalPeriod" class="form-label">Gmail取得期間（日）</label>
+                        <input type="number" id="retrievalPeriod" class="form-input" value="1" min="1" max="30">
+                        <p class="form-hint">議事録生成時のデフォルトのメール取得期間</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Google連携 -->
+            <section id="google" class="settings-section">
+                <h2 class="section-title">Google連携</h2>
+
+                <div class="settings-card">
+                    <h3 class="card-title">Google アカウント</h3>
+                    <div class="auth-status" id="authStatus">
+                        <div class="status-icon disconnected">●</div>
+                        <div class="status-text">
+                            <p class="status-label">未接続</p>
+                            <p class="status-description">Googleアカウントと連携していません</p>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" id="authBtn">
+                        Googleアカウントと連携
+                    </button>
+                </div>
+
+                <div class="settings-card">
+                    <h3 class="card-title">Gmail設定</h3>
+                    <div class="form-group">
+                        <label for="gmailLabel" class="form-label">物件情報メールのラベル</label>
+                        <input type="text" id="gmailLabel" class="form-input" placeholder="物件情報" value="物件情報">
+                        <p class="form-hint">このラベルが付いたメールから物件情報を取得します</p>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3 class="card-title">Google Drive設定</h3>
+                    <div class="form-group">
+                        <label for="driveFolderPath" class="form-label">保存先フォルダ名</label>
+                        <input type="text" id="driveFolderPath" class="form-input" placeholder="定例会" value="定例会">
+                        <p class="form-hint">議事録を保存するGoogle Driveのフォルダ名</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 参加者情報 -->
+            <section id="participants" class="settings-section">
+                <h2 class="section-title">参加者情報</h2>
+
+                <div class="settings-card">
+                    <h3 class="card-title">役員情報</h3>
+                    <div class="form-group">
+                        <label for="presidentName" class="form-label">代表取締役社長</label>
+                        <input type="text" id="presidentName" class="form-input" placeholder="山田太郎">
+                    </div>
+                    <div class="form-group">
+                        <label for="wifeName" class="form-label">取締役（妻）</label>
+                        <input type="text" id="wifeName" class="form-input" placeholder="山田花子">
+                    </div>
+                    <div class="form-group">
+                        <label for="chairmanName" class="form-label">取締役会長（父）</label>
+                        <input type="text" id="chairmanName" class="form-input" placeholder="山田一郎">
+                    </div>
+                    <div class="form-group">
+                        <label for="motherName" class="form-label">取締役（母）</label>
+                        <input type="text" id="motherName" class="form-input" placeholder="山田春子">
+                    </div>
+                    <div class="form-group">
+                        <label for="sisterName" class="form-label">取締役（姉）</label>
+                        <input type="text" id="sisterName" class="form-input" placeholder="山田美咲">
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3 class="card-title">参加パターン設定</h3>
+                    <p class="card-description">開催場所に応じた参加者の自動選択設定</p>
+
+                    <div class="participation-pattern">
+                        <h4>東京開催時</h4>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" checked disabled>
+                                <span>代表取締役社長</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" checked disabled>
+                                <span>取締役（妻）</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="participation-pattern">
+                        <h4>長野開催時</h4>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" checked disabled>
+                                <span>取締役会長（父）</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" checked disabled>
+                                <span>取締役（母）</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- YouTube設定 (Phase 2) -->
+            <section id="youtube" class="settings-section">
+                <div class="phase-notice">
+                    <h3>Phase 2 で実装予定</h3>
+                    <p>YouTube動画から税務情報を取得する機能は、Phase 2で追加される予定です。</p>
+                </div>
+            </section>
+
+            <!-- 楽待設定 (Phase 2) -->
+            <section id="rakumachi" class="settings-section">
+                <div class="phase-notice">
+                    <h3>Phase 2 で実装予定</h3>
+                    <p>楽待ニュースから不動産情報を取得する機能は、Phase 2で追加される予定です。</p>
+                </div>
+            </section>
+
+            <!-- 保存ボタン -->
+            <div class="action-buttons">
+                <button class="btn btn-secondary" id="cancelBtn">キャンセル</button>
+                <button class="btn btn-primary" id="saveBtn">設定を保存</button>
+            </div>
+        </main>
+    </div>
+
+    <script src="../../dist/renderer/ts/settings.js"></script>
+</body>
+</html>

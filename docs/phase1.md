@@ -238,7 +238,7 @@ estate-minutes-generator/
 │   │   │   └── drive.ts          # Google Drive API
 │   │   └── minutesGenerator.ts   # 議事録生成統合処理
 │   ├── types/
-│   │   └── index.d.ts            # 共通型定義
+│   │   └── index.d.ts            # 共通型定義（下記参照）
 │   └── utils/
 │       ├── config.ts             # 設定管理
 │       ├── logger.ts             # ログ機能
@@ -256,28 +256,169 @@ estate-minutes-generator/
 
 ---
 
+## 🔷 型定義ファイル（src/types/index.d.ts）
+
+```typescript
+// 物件情報の型定義
+export interface PropertyInfo {
+  buildingAge: number;      // 築年数
+  location: string;         // 立地（住所）
+  price: number;           // 購入金額
+  type?: string;           // 物件タイプ（マンション、戸建てなど）
+  area?: number;           // 面積（㎡）
+  description?: string;    // その他の情報
+}
+
+// メールデータの型定義
+export interface EmailData {
+  id: string;
+  subject: string;
+  from: string;
+  date: Date;
+  body: string;
+  propertyInfo?: PropertyInfo;
+}
+
+// 議事録コンテンツの型定義
+export interface MinutesContent {
+  date: Date;
+  startTime: string;
+  endTime: string;
+  location: 'tokyo' | 'nagano' | 'online';
+  participants: Participant[];
+  agenda: string[];
+  content: DiscussionItem[];
+  conclusion: string;
+}
+
+// 参加者の型定義
+export interface Participant {
+  name: string;
+  role: string;
+  profile?: ParticipantProfile;
+}
+
+// 参加者プロファイルの型定義
+export interface ParticipantProfile {
+  knowledgeLevel: 'high' | 'beginner';
+  style: 'professional' | 'casual' | 'senior_casual' | 'very_casual';
+}
+
+// 議論項目の型定義
+export interface DiscussionItem {
+  topic: string;
+  propertyInfo?: PropertyInfo;
+  opinions: ParticipantOpinion[];
+}
+
+// 参加者意見の型定義
+export interface ParticipantOpinion {
+  participantName: string;
+  opinion: string;
+}
+
+// 設定の型定義
+export interface AppConfig {
+  company: {
+    name: string;
+  };
+  defaults: {
+    location: 'tokyo' | 'nagano' | 'online';
+    startTime: string;
+    endTime: string;
+    retrievalPeriod: number;
+  };
+  google: {
+    driveFolderPath: string;
+    gmailLabel: string;
+    refreshToken?: string;
+  };
+  participants: {
+    president: string;
+    wife: string;
+    chairman: string;
+    mother: string;
+    sister: string;
+  };
+}
+
+// IPC通信の型定義
+export interface IpcRequest<T = any> {
+  channel: string;
+  data: T;
+}
+
+export interface IpcResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+// 議事録生成リクエストの型定義
+export interface GenerateMinutesRequest {
+  date: Date;
+  startTime: string;
+  endTime: string;
+  location: 'tokyo' | 'nagano' | 'online';
+  participants: string[];
+  gmailStartDate: Date;
+  gmailEndDate: Date;
+}
+
+// 議事録生成結果の型定義
+export interface GenerateMinutesResult {
+  documentId: string;
+  documentUrl: string;
+  fileName: string;
+  createdAt: Date;
+}
+
+// バリデーション結果の型定義
+export interface ValidationResult {
+  isValid: boolean;
+  errors: ValidationError[];
+}
+
+export interface ValidationError {
+  field: string;
+  message: string;
+}
+
+// ログエントリの型定義
+export type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+
+export interface LogEntry {
+  level: LogLevel;
+  timestamp: Date;
+  message: string;
+  data?: any;
+}
+```
+
+---
+
 ## 📦 依存関係（package.json）
 
 ### devDependencies
 ```json
 {
-  "electron": "^27.0.0",
-  "electron-builder": "^24.0.0",
-  "typescript": "^5.0.0",
-  "@types/node": "^20.0.0",
-  "@types/electron": "^1.6.10"
+  "electron": "^31.0.0",
+  "electron-builder": "^25.0.0",
+  "typescript": "^5.6.0",
+  "@types/node": "^22.0.0"
 }
 ```
+注: `@types/electron`は不要（Electron本体に型定義が含まれています）
 
 ### dependencies
 ```json
 {
-  "@google/generative-ai": "^0.21.0",
+  "@google/generative-ai": "^0.31.0",
   "@google-cloud/local-auth": "^3.0.0",
-  "googleapis": "^128.0.0",
-  "flatpickr": "^4.6.0",
-  "electron-store": "^8.1.0",
-  "dotenv": "^16.0.0"
+  "googleapis": "^144.0.0",
+  "flatpickr": "^4.6.13",
+  "electron-store": "^10.0.0",
+  "dotenv": "^16.4.0"
 }
 ```
 
@@ -288,6 +429,8 @@ estate-minutes-generator/
   "dev": "npm run build && electron . --dev",
   "build": "tsc",
   "watch": "tsc --watch",
+  "clean": "rm -rf dist",
+  "postinstall": "npm run build",
   "build-win": "npm run build && electron-builder --win",
   "build-mac": "npm run build && electron-builder --mac",
   "package": "npm run build && electron-builder --win --mac"
@@ -477,7 +620,7 @@ Thumbs.db
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",
-    "lib": ["ES2020"],
+    "lib": ["ES2020", "DOM"],
     "outDir": "./dist",
     "rootDir": "./src",
     "strict": true,
@@ -486,19 +629,23 @@ Thumbs.db
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "moduleResolution": "node",
-    "types": ["node", "electron"]
+    "types": ["node"]
   },
   "include": [
-    "src/**/*"
+    "src/**/*.ts",
+    "src/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
     "build",
-    "src/renderer/**/*"
+    "**/*.html",
+    "**/*.css"
   ]
 }
 ```
+
+注: レンダラープロセスのTypeScriptファイルも含めるよう修正しました。
 
 ---
 
@@ -571,14 +718,178 @@ Phase 1 完了後、以下の機能を Phase 2 で実装予定:
 
 ---
 
+## 🔧 ビルドプロセスと初期セットアップ
+
+### 初回セットアップ手順
+```bash
+# 1. プロジェクトのクローン/作成
+git clone [repository-url] estate-minutes-generator
+cd estate-minutes-generator
+
+# 2. 依存関係のインストール（postinstallでビルドも自動実行）
+npm install
+
+# 3. 環境変数の設定
+cp .env.example .env
+# .envファイルを編集してAPIキーを設定
+
+# 4. 開発モードで起動
+npm run dev
+```
+
+### ビルドコマンド
+```bash
+# TypeScriptのコンパイル
+npm run build
+
+# 開発用（ファイル監視モード）
+npm run watch
+
+# distディレクトリのクリーンアップ
+npm run clean
+
+# プラットフォーム別ビルド
+npm run build-win   # Windows用
+npm run build-mac   # Mac用
+npm run package     # 両プラットフォーム
+```
+
+### メインプロセスでの環境変数読み込み（src/main/index.ts）
+```typescript
+import { app, BrowserWindow, ipcMain } from 'electron';
+import * as path from 'path';
+import * as dotenv from 'dotenv';
+
+// 環境変数の読み込み（最初に実行）
+dotenv.config();
+
+// 開発モードの判定
+const isDev = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
+
+// ... 以降のコード
+```
+
+## 🚨 エラーハンドリングの実装
+
+### API呼び出しのエラー処理パターン
+```typescript
+// src/utils/errorHandler.ts
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public statusCode?: number,
+    public details?: any
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+export async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  maxRetries: number = 3,
+  initialDelay: number = 1000
+): Promise<T> {
+  let lastError: Error;
+
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+
+      // リトライ不可能なエラーの場合は即座に投げる
+      if (error instanceof ApiError && error.statusCode === 401) {
+        throw error;
+      }
+
+      // 最後の試行でなければ待機
+      if (i < maxRetries - 1) {
+        const delay = initialDelay * Math.pow(2, i);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw lastError!;
+}
+
+// 使用例（Gmail API）
+export async function fetchEmails(label: string, dateRange: DateRange): Promise<EmailData[]> {
+  try {
+    return await retryWithBackoff(async () => {
+      const response = await gmail.users.messages.list({
+        userId: 'me',
+        labelIds: [label],
+        q: `after:${dateRange.start} before:${dateRange.end}`
+      });
+
+      if (!response.data.messages) {
+        return [];
+      }
+
+      // メール詳細の取得...
+      return emails;
+    });
+  } catch (error) {
+    if (error instanceof ApiError) {
+      // ユーザー向けエラーメッセージ
+      if (error.statusCode === 401) {
+        throw new Error('Google認証が必要です。設定画面から再認証してください。');
+      }
+      throw new Error(`メールの取得に失敗しました: ${error.message}`);
+    }
+    throw error;
+  }
+}
+```
+
+### IPC通信でのエラーハンドリング
+```typescript
+// src/main/ipcHandlers.ts
+ipcMain.handle('generate-minutes', async (event, request: GenerateMinutesRequest) => {
+  try {
+    // プログレス通知
+    event.sender.send('generation-progress', { step: 'fetching_emails', progress: 0 });
+
+    const emails = await fetchEmails(config.google.gmailLabel, {
+      start: request.gmailStartDate,
+      end: request.gmailEndDate
+    });
+
+    event.sender.send('generation-progress', { step: 'generating_content', progress: 50 });
+
+    const minutesContent = await generateMinutesContent(emails, request);
+
+    event.sender.send('generation-progress', { step: 'creating_document', progress: 75 });
+
+    const result = await createGoogleDoc(minutesContent);
+
+    event.sender.send('generation-complete', result);
+
+    return { success: true, data: result };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : '不明なエラーが発生しました';
+
+    event.sender.send('generation-error', {
+      message: errorMessage,
+      code: (error as any).code || 'UNKNOWN_ERROR'
+    });
+
+    return { success: false, error: errorMessage };
+  }
+});
+```
+
 ## 💡 実装時の注意事項
 
 ### 開発のベストプラクティス
 1. **段階的な実装**: 1機能ずつ実装してテスト
-2. **エラーハンドリング**: すべての API 呼び出しに try-catch
-3. **ユーザーフィードバック**: 処理中は必ずローディング表示
-4. **ログ出力**: デバッグ用のログを適切に記録
-5. **コードの可読性**: コメントを適切に記載
+2. **エラーハンドリング**: すべての API 呼び出しに try-catch とリトライ機構
+3. **ユーザーフィードバック**: 処理中は必ずローディング表示とプログレス通知
+4. **ログ出力**: デバッグ用のログを適切に記録（本番環境では適切なレベル設定）
+5. **コードの可読性**: コメントを適切に記載、関数は単一責任の原則に従う
 6. **型安全性**: TypeScriptの型システムを活用し、コンパイルエラーを早期発見
 
 ### TypeScript開発のポイント
