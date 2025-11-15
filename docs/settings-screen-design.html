@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>設定 - 議事録自動生成ツール</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans JP', 'Roboto', sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+        
+        .settings-container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        /* サイドバー */
+        .sidebar {
+            width: 280px;
+            background: white;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            padding: 30px 0;
+        }
+        
+        .sidebar-header {
+            padding: 0 30px 30px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .sidebar-title {
+            font-size: 20px;
+            font-weight: 500;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .sidebar-title .material-icons {
+            color: #667eea;
+        }
+        
+        .nav-menu {
+            padding: 20px 0;
+        }
+        
+        .nav-item {
+            padding: 15px 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: #666;
+            position: relative;
+        }
+        
+        .nav-item:hover {
+            background: #f5f5f5;
+        }
+        
+        .nav-item.active {
+            background: #f5f7ff;
+            color: #667eea;
+        }
+        
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #667eea;
+        }
+        
+        .nav-item .material-icons {
+            font-size: 20px;
+        }
+        
+        .nav-item.phase2 {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+        
+        .nav-item .badge {
+            margin-left: auto;
+            background: #ff9800;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+        
+        /* メインコンテンツ */
+        .main-content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+        }
+        
+        .content-header {
+            margin-bottom: 40px;
+        }
+        
+        .content-title {
+            font-size: 28px;
+            font-weight: 400;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .content-subtitle {
+            color: #999;
+            font-size: 14px;
+        }
+        
+        /* 設定セクション */
+        .settings-section {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-title .material-icons {
+            color: #667eea;
+            font-size: 24px;
+        }
+        
+        .form-row {
+            margin-bottom: 25px;
+        }
+        
+        .form-row:last-child {
+            margin-bottom: 0;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 10px;
+            color: #666;
+            font-size: 14px;
+            font-weight: 400;
+        }
+        
+        .form-label .required {
+            color: #f44336;
+            margin-left: 4px;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .input-with-button {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .input-with-button .input-field {
+            flex: 1;
+        }
+        
+        .browse-btn {
+            padding: 12px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Noto Sans JP', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .browse-btn:hover {
+            background: #5a6fd8;
+        }
+        
+        .browse-btn .material-icons {
+            font-size: 18px;
+        }
+        
+        .select-field {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+            font-family: 'Noto Sans JP', sans-serif;
+            background: white;
+            cursor: pointer;
+        }
+        
+        .select-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .help-text {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .time-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        /* 参加者情報グリッド */
+        .participants-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        
+        /* アクションボタン */
+        .action-buttons {
+            background: white;
+            padding: 30px;
+            margin-top: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Noto Sans JP', sans-serif;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a6fd8;
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: #666;
+            border: 2px solid #e0e0e0;
+        }
+        
+        .btn-secondary:hover {
+            background: #f5f5f5;
+        }
+        
+        /* Phase 2プレビュー */
+        .phase2-preview {
+            background: #fff3e0;
+            border: 2px dashed #ff9800;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .phase2-preview .preview-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #e65100;
+            font-weight: 500;
+            margin-bottom: 15px;
+        }
+        
+        .phase2-preview .material-icons {
+            color: #ff9800;
+        }
+        
+        .phase2-fields {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="settings-container">
+        <!-- サイドバー -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">
+                    <span class="material-icons">settings</span>
+                    <span>設定</span>
+                </div>
+            </div>
+            <nav class="nav-menu">
+                <div class="nav-item active" onclick="showSection('general')">
+                    <span class="material-icons">tune</span>
+                    <span>基本設定</span>
+                </div>
+                <div class="nav-item" onclick="showSection('google')">
+                    <span class="material-icons">cloud</span>
+                    <span>Google連携</span>
+                </div>
+                <div class="nav-item" onclick="showSection('participants')">
+                    <span class="material-icons">people</span>
+                    <span>参加者情報</span>
+                </div>
+                <div class="nav-item phase2" onclick="showSection('youtube')">
+                    <span class="material-icons">play_circle</span>
+                    <span>YouTube設定</span>
+                    <span class="badge">Phase 2</span>
+                </div>
+                <div class="nav-item phase2" onclick="showSection('rakumachi')">
+                    <span class="material-icons">article</span>
+                    <span>楽待設定</span>
+                    <span class="badge">Phase 2</span>
+                </div>
+            </nav>
+        </div>
+        
+        <!-- メインコンテンツ -->
+        <div class="main-content">
+            <!-- 基本設定セクション -->
+            <div id="general-section" class="settings-content">
+                <div class="content-header">
+                    <h1 class="content-title">基本設定</h1>
+                    <p class="content-subtitle">アプリケーションの基本的な動作設定を行います</p>
+                </div>
+                
+                <div class="settings-section">
+                    <h2 class="section-title">
+                        <span class="material-icons">business</span>
+                        会社情報
+                    </h2>
+                    <div class="form-row">
+                        <label class="form-label">
+                            会社名
+                            <span class="required">*</span>
+                        </label>
+                        <input type="text" class="input-field" placeholder="株式会社○○不動産" id="companyName">
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h2 class="section-title">
+                        <span class="material-icons">schedule</span>
+                        デフォルト値
+                    </h2>
+                    <div class="form-row">
+                        <label class="form-label">デフォルト開催場所</label>
+                        <select class="select-field" id="defaultLocation">
+                            <option value="tokyo">東京事務所</option>
+                            <option value="nagano">長野事務所</option>
+                            <option value="online">オンライン</option>
+                        </select>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">デフォルト開催時間</label>
+                        <div class="time-inputs">
+                            <input type="time" class="input-field" value="14:00" id="defaultStartTime">
+                            <input type="time" class="input-field" value="15:00" id="defaultEndTime">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">物件情報取得期間</label>
+                        <select class="select-field" id="defaultDateRange">
+                            <option value="today">本日のみ</option>
+                            <option value="3days">過去3日間</option>
+                            <option value="week">過去1週間</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Google連携セクション -->
+            <div id="google-section" class="settings-content" style="display: none;">
+                <div class="content-header">
+                    <h1 class="content-title">Google連携</h1>
+                    <p class="content-subtitle">Google Drive、Gmail等のAPI連携設定を行います</p>
+                </div>
+                
+                <div class="settings-section">
+                    <h2 class="section-title">
+                        <span class="material-icons">folder</span>
+                        Google Drive設定
+                    </h2>
+                    <div class="form-row">
+                        <label class="form-label">
+                            保存先フォルダ
+                            <span class="required">*</span>
+                        </label>
+                        <div class="input-with-button">
+                            <input type="text" class="input-field" placeholder="/マイドライブ/定例会/" id="driveFolderPath" readonly>
+                            <button class="browse-btn" onclick="selectDriveFolder()">
+                                <span class="material-icons">folder_open</span>
+                                <span>選択</span>
+                            </button>
+                        </div>
+                        <div class="help-text">議事録を保存するGoogle Driveのフォルダを選択してください</div>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h2 class="section-title">
+                        <span class="material-icons">email</span>
+                        Gmail設定
+                    </h2>
+                    <div class="form-row">
+                        <label class="form-label">
+                            物件情報ラベル名
+                            <span class="required">*</span>
+                        </label>
+                        <input type="text" class="input-field" placeholder="物件情報" value="物件情報" id="gmailLabel">
+                        <div class="help-text">物件情報メールに付けているGmailのラベル名を入力してください</div>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <h2 class="section-title">
+                        <span class="material-icons">key</span>
+                        API認証
+                    </h2>
+                    <div class="form-row">
+                        <label class="form-label">Gemini API キー</label>
+                        <input type="password" class="input-field" placeholder="AIzaSy..." id="geminiApiKey">
+                        <div class="help-text">
+                            Google AI Studioで取得したAPIキーを入力してください
+                            <a href="https://aistudio.google.com/apikey" target="_blank" style="color: #667eea;">APIキーを取得</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 参加者情報セクション -->
+            <div id="participants-section" class="settings-content" style="display: none;">
+                <div class="content-header">
+                    <h1 class="content-title">参加者情報</h1>
+                    <p class="content-subtitle">会議参加者の名前と役職を設定します</p>
+                </div>
+                
+                <div class="settings-section">
+                    <h2 class="section-title">
+                        <span class="material-icons">people</span>
+                        役員情報
+                    </h2>
+                    <div class="participants-grid">
+                        <div class="form-row">
+                            <label class="form-label">代表取締役社長（東京）</label>
+                            <input type="text" class="input-field" placeholder="山田 太郎" id="president">
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">取締役・非常勤（妻・東京）</label>
+                            <input type="text" class="input-field" placeholder="山田 花子" id="wife">
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">取締役会長（父・長野）</label>
+                            <input type="text" class="input-field" placeholder="山田 一郎" id="chairman">
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">取締役・非常勤（母・長野）</label>
+                            <input type="text" class="input-field" placeholder="山田 良子" id="mother">
+                        </div>
+                        <div class="form-row">
+                            <label class="form-label">取締役・非常勤（姉・東京）</label>
+                            <input type="text" class="input-field" placeholder="山田 美咲" id="sister">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Phase 2プレビュー：YouTube設定 -->
+            <div id="youtube-section" class="settings-content" style="display: none;">
+                <div class="content-header">
+                    <h1 class="content-title">YouTube設定</h1>
+                    <p class="content-subtitle">税務会議用のYouTube動画取得設定</p>
+                </div>
+                
+                <div class="phase2-preview">
+                    <div class="preview-header">
+                        <span class="material-icons">info</span>
+                        <span>この機能はPhase 2で実装予定です</span>
+                    </div>
+                    <p style="color: #666; font-size: 14px;">
+                        YouTubeの税理士チャンネルから動画を取得し、内容を解析して税務会議の議事録を生成する機能です。
+                    </p>
+                </div>
+                
+                <div class="settings-section phase2-fields">
+                    <h2 class="section-title">
+                        <span class="material-icons">play_circle</span>
+                        チャンネル設定
+                    </h2>
+                    <div class="form-row">
+                        <label class="form-label">YouTubeチャンネルID</label>
+                        <input type="text" class="input-field" placeholder="UCxxxxxx" disabled>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">取得動画数</label>
+                        <select class="select-field" disabled>
+                            <option>2本</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- アクションボタン -->
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="cancelSettings()">
+                    <span class="material-icons">close</span>
+                    <span>キャンセル</span>
+                </button>
+                <button class="btn btn-primary" onclick="saveSettings()">
+                    <span class="material-icons">save</span>
+                    <span>保存</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // セクション切り替え
+        function showSection(section) {
+            // すべてのセクションを非表示
+            document.querySelectorAll('.settings-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            // すべてのナビアイテムから active を削除
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // 選択されたセクションを表示
+            document.getElementById(section + '-section').style.display = 'block';
+            
+            // 選択されたナビアイテムに active を追加
+            event.currentTarget.classList.add('active');
+        }
+        
+        // Google Driveフォルダ選択
+        function selectDriveFolder() {
+            // Electronの場合はGoogle Drive APIを使用
+            if (window.electronAPI) {
+                window.electronAPI.selectDriveFolder().then(folder => {
+                    document.getElementById('driveFolderPath').value = folder.path;
+                });
+            }
+        }
+        
+        // 設定の保存
+        function saveSettings() {
+            const settings = {
+                company: {
+                    name: document.getElementById('companyName').value
+                },
+                defaults: {
+                    location: document.getElementById('defaultLocation').value,
+                    startTime: document.getElementById('defaultStartTime').value,
+                    endTime: document.getElementById('defaultEndTime').value,
+                    dateRange: document.getElementById('defaultDateRange').value
+                },
+                google: {
+                    driveFolderPath: document.getElementById('driveFolderPath').value,
+                    gmailLabel: document.getElementById('gmailLabel').value,
+                    geminiApiKey: document.getElementById('geminiApiKey').value
+                },
+                participants: {
+                    president: document.getElementById('president').value,
+                    wife: document.getElementById('wife').value,
+                    chairman: document.getElementById('chairman').value,
+                    mother: document.getElementById('mother').value,
+                    sister: document.getElementById('sister').value
+                }
+            };
+            
+            console.log('保存する設定:', settings);
+            
+            if (window.electronAPI) {
+                window.electronAPI.saveSettings(settings);
+            }
+        }
+        
+        // 設定のキャンセル
+        function cancelSettings() {
+            if (window.electronAPI) {
+                window.electronAPI.closeSettings();
+            }
+        }
+        
+        // 設定の読み込み
+        function loadSettings() {
+            if (window.electronAPI) {
+                window.electronAPI.loadSettings().then(settings => {
+                    if (settings) {
+                        // 設定を各フィールドに反映
+                        if (settings.company) {
+                            document.getElementById('companyName').value = settings.company.name || '';
+                        }
+                        // ... 他の設定も同様に読み込み
+                    }
+                });
+            }
+        }
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSettings();
+        });
+    </script>
+</body>
+</html>

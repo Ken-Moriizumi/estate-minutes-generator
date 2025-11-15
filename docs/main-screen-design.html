@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>議事録自動生成ツール</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Noto Sans JP', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 800px;
+            width: 100%;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            color: white;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .header .subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .phase-indicator {
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            padding: 4px 12px;
+            display: inline-block;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 35px;
+        }
+        
+        .section-title {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        .section-title .material-icons {
+            margin-right: 8px;
+            color: #667eea;
+        }
+        
+        .form-group {
+            margin-bottom: 25px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #666;
+            font-size: 14px;
+            font-weight: 400;
+        }
+        
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .radio-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 140px;
+        }
+        
+        .radio-item:hover {
+            background: #e8eaf6;
+        }
+        
+        .radio-item.selected {
+            background: #667eea;
+            color: white;
+        }
+        
+        .radio-item input[type="radio"] {
+            display: none;
+        }
+        
+        .radio-item .radio-circle {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #999;
+            border-radius: 50%;
+            margin-right: 10px;
+            position: relative;
+            transition: all 0.3s;
+        }
+        
+        .radio-item.selected .radio-circle {
+            border-color: white;
+        }
+        
+        .radio-item.selected .radio-circle::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px;
+            height: 10px;
+            background: white;
+            border-radius: 50%;
+        }
+        
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .checkbox-item:hover {
+            background: #e8eaf6;
+        }
+        
+        .checkbox-item.checked {
+            background: #e8eaf6;
+            border: 1px solid #667eea;
+        }
+        
+        .checkbox-item input[type="checkbox"] {
+            display: none;
+        }
+        
+        .checkbox-item .checkbox-square {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #999;
+            border-radius: 4px;
+            margin-right: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .checkbox-item.checked .checkbox-square {
+            background: #667eea;
+            border-color: #667eea;
+        }
+        
+        .checkbox-item.checked .checkbox-square::after {
+            content: '✓';
+            color: white;
+            font-size: 14px;
+        }
+        
+        .datetime-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .input-field {
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s;
+            width: 100%;
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .date-range-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .date-range-container .input-field {
+            flex: 1;
+        }
+        
+        .date-range-container .separator {
+            color: #999;
+            font-size: 18px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 40px;
+        }
+        
+        .btn {
+            padding: 15px 40px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Noto Sans JP', sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #f5f5f5;
+            color: #666;
+        }
+        
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+        
+        .menu-bar {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+        
+        .menu-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .menu-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        /* Phase 2のための準備（非表示） */
+        .phase2-section {
+            display: none;
+            opacity: 0.5;
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 10px;
+            border: 2px dashed #ccc;
+        }
+        
+        .coming-soon-badge {
+            background: #ff9800;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="menu-bar">
+                <button class="menu-btn" onclick="openSettings()">
+                    <span class="material-icons">settings</span>
+                </button>
+            </div>
+            <h1>不動産賃貸業 議事録自動生成ツール</h1>
+            <div class="subtitle">物件検討会議の議事録を自動で作成します</div>
+            <div class="phase-indicator">Phase 1: 物件検討議事録</div>
+        </div>
+        
+        <div class="content">
+            <!-- 基本情報設定 -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="material-icons">business</span>
+                    基本情報設定
+                </h2>
+                
+                <div class="form-group">
+                    <label class="form-label">開催場所</label>
+                    <div class="radio-group">
+                        <div class="radio-item selected" onclick="selectLocation('tokyo')">
+                            <input type="radio" name="location" value="tokyo" checked>
+                            <div class="radio-circle"></div>
+                            <span>東京事務所</span>
+                        </div>
+                        <div class="radio-item" onclick="selectLocation('nagano')">
+                            <input type="radio" name="location" value="nagano">
+                            <div class="radio-circle"></div>
+                            <span>長野事務所</span>
+                        </div>
+                        <div class="radio-item" onclick="selectLocation('online')">
+                            <input type="radio" name="location" value="online">
+                            <div class="radio-circle"></div>
+                            <span>オンライン</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">参加者（自動設定）</label>
+                    <div class="checkbox-group" id="participantsList">
+                        <div class="checkbox-item checked">
+                            <input type="checkbox" checked>
+                            <div class="checkbox-square"></div>
+                            <span>代表取締役社長</span>
+                        </div>
+                        <div class="checkbox-item checked">
+                            <input type="checkbox" checked>
+                            <div class="checkbox-square"></div>
+                            <span>取締役（妻）</span>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox">
+                            <div class="checkbox-square"></div>
+                            <span>取締役会長</span>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox">
+                            <div class="checkbox-square"></div>
+                            <span>取締役（母）</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">開催日時</label>
+                    <div class="datetime-group">
+                        <input type="date" class="input-field" id="meetingDate" value="2024-11-25">
+                        <input type="time" class="input-field" id="startTime" value="14:00">
+                        <input type="time" class="input-field" id="endTime" value="15:00">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Phase 2プレビュー（将来実装） -->
+            <div class="phase2-section">
+                <h2 class="section-title">
+                    <span class="material-icons">category</span>
+                    議事録タイプ
+                    <span class="coming-soon-badge">Phase 2で実装予定</span>
+                </h2>
+                <div class="radio-group">
+                    <div class="radio-item">
+                        <input type="radio" name="docType" value="tax">
+                        <div class="radio-circle"></div>
+                        <span>税務会議</span>
+                    </div>
+                    <div class="radio-item">
+                        <input type="radio" name="docType" value="realestate">
+                        <div class="radio-circle"></div>
+                        <span>不動産情報</span>
+                    </div>
+                    <div class="radio-item">
+                        <input type="radio" name="docType" value="property" checked>
+                        <div class="radio-circle"></div>
+                        <span>物件検討</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 物件情報取得設定 -->
+            <div class="section">
+                <h2 class="section-title">
+                    <span class="material-icons">email</span>
+                    物件情報取得設定
+                </h2>
+                
+                <div class="form-group">
+                    <label class="form-label">Gmail物件情報の取得期間</label>
+                    <div class="date-range-container">
+                        <input type="date" class="input-field" id="startDate" value="2024-11-25">
+                        <span class="separator">〜</span>
+                        <input type="date" class="input-field" id="endDate" value="2024-11-25">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- アクションボタン -->
+            <div class="action-buttons">
+                <button class="btn btn-secondary" onclick="resetForm()">
+                    <span class="material-icons">refresh</span>
+                    リセット
+                </button>
+                <button class="btn btn-primary" onclick="generateMinutes()">
+                    <span class="material-icons">description</span>
+                    議事録を作成
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 開催場所の選択
+        function selectLocation(location) {
+            // ラジオボタンのUIを更新
+            document.querySelectorAll('.radio-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            event.currentTarget.classList.add('selected');
+            
+            // 参加者を自動設定
+            const checkboxes = document.querySelectorAll('.checkbox-item');
+            checkboxes.forEach(item => item.classList.remove('checked'));
+            
+            if (location === 'tokyo') {
+                checkboxes[0].classList.add('checked'); // 社長
+                checkboxes[1].classList.add('checked'); // 妻
+            } else if (location === 'nagano') {
+                checkboxes[2].classList.add('checked'); // 会長
+                checkboxes[3].classList.add('checked'); // 母
+            } else if (location === 'online') {
+                // オンラインの場合は手動選択
+                checkboxes.forEach(item => {
+                    item.style.pointerEvents = 'auto';
+                    item.onclick = function() {
+                        this.classList.toggle('checked');
+                    };
+                });
+            }
+        }
+        
+        // 今日の日付を設定
+        function setToday() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('meetingDate').value = today;
+            document.getElementById('startDate').value = today;
+            document.getElementById('endDate').value = today;
+        }
+        
+        // フォームリセット
+        function resetForm() {
+            setToday();
+            document.getElementById('startTime').value = '14:00';
+            document.getElementById('endTime').value = '15:00';
+            selectLocation('tokyo');
+        }
+        
+        // 議事録生成
+        function generateMinutes() {
+            const data = {
+                location: document.querySelector('.radio-item.selected input').value,
+                participants: Array.from(document.querySelectorAll('.checkbox-item.checked span'))
+                    .map(span => span.textContent),
+                meetingDate: document.getElementById('meetingDate').value,
+                startTime: document.getElementById('startTime').value,
+                endTime: document.getElementById('endTime').value,
+                emailStartDate: document.getElementById('startDate').value,
+                emailEndDate: document.getElementById('endDate').value
+            };
+            
+            console.log('議事録生成データ:', data);
+            // ここでElectronのIPCを使ってメインプロセスに送信
+            if (window.electronAPI) {
+                window.electronAPI.generateMinutes(data);
+            }
+        }
+        
+        // 設定画面を開く
+        function openSettings() {
+            if (window.electronAPI) {
+                window.electronAPI.openSettings();
+            }
+        }
+        
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            setToday();
+        });
+    </script>
+</body>
+</html>
