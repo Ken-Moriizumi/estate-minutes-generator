@@ -22,9 +22,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return ipcRenderer.invoke('save-settings', settings);
     },
 
-    // Google認証
+    // Google認証URLを生成してブラウザで開く
     authenticateGoogle: () => {
         return ipcRenderer.invoke('authenticate-google');
+    },
+
+    // 認証コードを処理
+    processAuthCode: (code: string) => {
+        return ipcRenderer.invoke('process-auth-code', code);
+    },
+
+    // 認証状態を確認
+    checkAuthStatus: () => {
+        return ipcRenderer.invoke('check-auth-status');
+    },
+
+    // 認証情報をクリア
+    clearAuthentication: () => {
+        return ipcRenderer.invoke('clear-authentication');
     },
 
     // プログレス通知の受信

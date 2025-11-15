@@ -93,9 +93,24 @@
                             <p class="status-description">Googleアカウントと連携していません</p>
                         </div>
                     </div>
-                    <button class="btn btn-primary" id="authBtn">
-                        Googleアカウントと連携
-                    </button>
+                    <div class="auth-actions">
+                        <button class="btn btn-primary" id="authBtn">
+                            Googleアカウントと連携
+                        </button>
+                        <button class="btn btn-secondary" id="clearAuthBtn" style="display: none;">
+                            認証を解除
+                        </button>
+                    </div>
+                    <div class="auth-code-section" id="authCodeSection" style="display: none;">
+                        <p class="info-text">ブラウザで認証を完了したら、認証コードを下記に入力してください</p>
+                        <div class="form-group">
+                            <label for="authCode" class="form-label">認証コード</label>
+                            <input type="text" id="authCode" class="form-input" placeholder="認証コードを貼り付けてください">
+                        </div>
+                        <button class="btn btn-primary" id="submitAuthCodeBtn">
+                            認証コードを送信
+                        </button>
+                    </div>
                 </div>
 
                 <div class="settings-card">

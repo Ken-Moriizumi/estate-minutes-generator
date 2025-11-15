@@ -140,6 +140,14 @@ function setupEventListeners(): void {
     const authBtn = document.getElementById('authBtn');
     authBtn?.addEventListener('click', handleGoogleAuth);
 
+    // 認証コード送信ボタン
+    const submitAuthCodeBtn = document.getElementById('submitAuthCodeBtn');
+    submitAuthCodeBtn?.addEventListener('click', handleSubmitAuthCode);
+
+    // 認証解除ボタン
+    const clearAuthBtn = document.getElementById('clearAuthBtn');
+    clearAuthBtn?.addEventListener('click', handleClearAuth);
+
     // 保存ボタン
     const saveBtn = document.getElementById('saveBtn');
     saveBtn?.addEventListener('click', handleSaveSettings);
@@ -147,9 +155,24 @@ function setupEventListeners(): void {
     // キャンセルボタン
     const cancelBtn = document.getElementById('cancelBtn');
     cancelBtn?.addEventListener('click', handleCancel);
+
+    // 初期認証状態をチェック
+    checkInitialAuthStatus();
 }
 
-// Google認証処理
+// 初期認証状態をチェック
+async function checkInitialAuthStatus(): Promise<void> {
+    if (!window.electronAPI?.checkAuthStatus) return;
+
+    try {
+        const result = await window.electronAPI.checkAuthStatus();
+        updateAuthStatus(result.authenticated);
+    } catch (error) {
+        console.error('認証状態確認エラー:', error);
+    }
+}
+
+// Google認証処理（ブラウザで認証URLを開く）
 async function handleGoogleAuth(): Promise<void> {
     try {
         const authBtn = document.getElementById('authBtn') as HTMLButtonElement;
@@ -160,16 +183,17 @@ async function handleGoogleAuth(): Promise<void> {
             const result = await window.electronAPI.authenticateGoogle();
 
             if (result.success) {
-                updateAuthStatus(true);
-                alert('Googleアカウントとの連携が完了しました。');
+                // 認証コード入力セクションを表示
+                const authCodeSection = document.getElementById('authCodeSection');
+                if (authCodeSection) {
+                    authCodeSection.style.display = 'block';
+                }
+                alert('ブラウザで認証を完了してください。\n認証完了後、表示される認証コードをコピーして、下記のフィールドに貼り付けてください。');
             } else {
-                alert('認証に失敗しました。\n' + (result.error || ''));
+                alert('認証URLの生成に失敗しました。\n' + (result.error || ''));
             }
         } else {
-            // 開発環境用
-            setTimeout(() => {
-                alert('Google認証機能は開発中です。');
-            }, 1000);
+            alert('Google認証機能が利用できません。');
         }
     } catch (error) {
         console.error('認証エラー:', error);
@@ -178,6 +202,75 @@ async function handleGoogleAuth(): Promise<void> {
         const authBtn = document.getElementById('authBtn') as HTMLButtonElement;
         authBtn.disabled = false;
         authBtn.textContent = 'Googleアカウントと連携';
+    }
+}
+
+// 認証コードを送信
+async function handleSubmitAuthCode(): Promise<void> {
+    const authCodeInput = document.getElementById('authCode') as HTMLInputElement;
+    const code = authCodeInput?.value.trim();
+
+    if (!code) {
+        alert('認証コードを入力してください。');
+        return;
+    }
+
+    try {
+        const submitBtn = document.getElementById('submitAuthCodeBtn') as HTMLButtonElement;
+        submitBtn.disabled = true;
+        submitBtn.textContent = '処理中...';
+
+        if (window.electronAPI?.processAuthCode) {
+            const result = await window.electronAPI.processAuthCode(code);
+
+            if (result.success) {
+                // 認証成功
+                updateAuthStatus(true);
+
+                // 認証コード入力セクションを隠す
+                const authCodeSection = document.getElementById('authCodeSection');
+                if (authCodeSection) {
+                    authCodeSection.style.display = 'none';
+                }
+
+                // 入力欄をクリア
+                authCodeInput.value = '';
+
+                alert('Googleアカウントとの連携が完了しました。');
+            } else {
+                alert('認証コードの処理に失敗しました。\n' + (result.error || ''));
+            }
+        }
+    } catch (error) {
+        console.error('認証コード処理エラー:', error);
+        alert('認証コードの処理中にエラーが発生しました。');
+    } finally {
+        const submitBtn = document.getElementById('submitAuthCodeBtn') as HTMLButtonElement;
+        submitBtn.disabled = false;
+        submitBtn.textContent = '認証コードを送信';
+    }
+}
+
+// 認証を解除
+async function handleClearAuth(): Promise<void> {
+    if (!confirm('Googleアカウントとの連携を解除しますか？')) {
+        return;
+    }
+
+    try {
+        if (window.electronAPI?.clearAuthentication) {
+            const result = await window.electronAPI.clearAuthentication();
+
+            if (result.success) {
+                updateAuthStatus(false);
+                alert('認証を解除しました。');
+            } else {
+                alert('認証の解除に失敗しました。\n' + (result.error || ''));
+            }
+        }
+    } catch (error) {
+        console.error('認証解除エラー:', error);
+        alert('認証解除中にエラーが発生しました。');
     }
 }
 
@@ -190,16 +283,28 @@ function updateAuthStatus(connected: boolean): void {
     const statusLabel = authStatus.querySelector('.status-label');
     const statusDescription = authStatus.querySelector('.status-description');
 
+    // ボタンの表示切り替え
+    const authBtn = document.getElementById('authBtn') as HTMLButtonElement;
+    const clearAuthBtn = document.getElementById('clearAuthBtn') as HTMLButtonElement;
+
     if (connected) {
         statusIcon?.classList.remove('disconnected');
         statusIcon?.classList.add('connected');
         if (statusLabel) statusLabel.textContent = '接続済み';
         if (statusDescription) statusDescription.textContent = 'Googleアカウントと連携しています';
+
+        // ボタン表示
+        if (authBtn) authBtn.style.display = 'none';
+        if (clearAuthBtn) clearAuthBtn.style.display = 'inline-block';
     } else {
         statusIcon?.classList.remove('connected');
         statusIcon?.classList.add('disconnected');
         if (statusLabel) statusLabel.textContent = '未接続';
         if (statusDescription) statusDescription.textContent = 'Googleアカウントと連携していません';
+
+        // ボタン表示
+        if (authBtn) authBtn.style.display = 'inline-block';
+        if (clearAuthBtn) clearAuthBtn.style.display = 'none';
     }
 }
 

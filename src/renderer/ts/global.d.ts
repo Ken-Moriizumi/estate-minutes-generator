@@ -7,7 +7,10 @@ interface ElectronAPI {
     generateMinutes: (request: any) => Promise<any>;
     loadSettings: () => Promise<any>;
     saveSettings: (settings: any) => Promise<{ success: boolean; error?: string }>;
-    authenticateGoogle: () => Promise<{ success: boolean; error?: string }>;
+    authenticateGoogle: () => Promise<{ success: boolean; authUrl?: string; error?: string }>;
+    processAuthCode: (code: string) => Promise<{ success: boolean; error?: string }>;
+    checkAuthStatus: () => Promise<{ authenticated: boolean }>;
+    clearAuthentication: () => Promise<{ success: boolean; error?: string }>;
     onProgress: (callback: (progress: any) => void) => void;
     onComplete: (callback: (result: any) => void) => void;
     onError: (callback: (error: any) => void) => void;

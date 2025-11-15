@@ -6,6 +6,10 @@ yarn.lock
 # Environment variables
 .env
 
+# Google OAuth credentials
+credentials.json
+token.json
+
 # TypeScript compilation output
 dist/
 

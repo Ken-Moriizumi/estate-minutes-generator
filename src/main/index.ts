@@ -1,8 +1,14 @@
-import { app, BrowserWindow, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import * as dotenv from 'dotenv';
 import { ConfigManager } from '../utils/config.js';
+import {
+  generateAuthUrl,
+  getTokenFromCode,
+  checkAuthStatus,
+  clearAuthentication
+} from '../services/google/auth.js';
 
 // ESMでの__dirnameの代替
 const __filename = fileURLToPath(import.meta.url);
@@ -207,15 +213,68 @@ function setupIpcHandlers(): void {
     }
   });
 
-  // Google認証（Week 2で本実装予定）
+  // Google認証URLを生成してブラウザで開く
   ipcMain.handle('authenticate-google', async () => {
     try {
-      console.log('Google認証を開始（スタブ）');
-      // TODO: Week 2でGoogle OAuth2認証フローを実装
-      return { success: false, error: 'Google認証機能はWeek 2で実装予定です' };
+      console.log('Google認証を開始');
+      const authUrl = await generateAuthUrl();
+
+      // デフォルトブラウザで認証URLを開く
+      await shell.openExternal(authUrl);
+
+      console.log('認証URL:', authUrl);
+      return { success: true, authUrl };
     } catch (error) {
       console.error('認証エラー:', error);
-      return { success: false, error: String(error) };
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // 認証コードを処理してトークンを保存
+  ipcMain.handle('process-auth-code', async (_event: any, code: string) => {
+    try {
+      console.log('認証コードを処理中...');
+      const credentials = await getTokenFromCode(code);
+
+      // リフレッシュトークンを保存
+      if (credentials.refresh_token) {
+        ConfigManager.setGoogleRefreshToken(credentials.refresh_token);
+        console.log('認証成功: リフレッシュトークンを保存しました');
+        return { success: true };
+      } else {
+        console.warn('リフレッシュトークンが取得できませんでした');
+        return { success: false, error: 'リフレッシュトークンが取得できませんでした' };
+      }
+    } catch (error) {
+      console.error('トークン取得エラー:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // 認証状態を確認
+  ipcMain.handle('check-auth-status', async () => {
+    try {
+      const authenticated = await checkAuthStatus();
+      console.log('認証状態:', authenticated ? '認証済み' : '未認証');
+      return { authenticated };
+    } catch (error) {
+      console.error('認証状態確認エラー:', error);
+      return { authenticated: false };
+    }
+  });
+
+  // 認証情報をクリア
+  ipcMain.handle('clear-authentication', async () => {
+    try {
+      clearAuthentication();
+      console.log('認証情報をクリアしました');
+      return { success: true };
+    } catch (error) {
+      console.error('認証クリアエラー:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
     }
   });
 

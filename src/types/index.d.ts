@@ -1,8 +1,30 @@
-// 物件情報の型定義
+// OAuth 2.0 認証情報の型定義
+export interface OAuth2Credentials {
+  access_token: string;
+  refresh_token?: string;
+  scope: string;
+  token_type: string;
+  expiry_date: number;
+}
+
+// Gmail 検索クエリの型定義
+export interface GmailSearchQuery {
+  startDate: Date;
+  endDate: Date;
+  label?: string;
+  maxResults?: number;
+}
+
+// 物件情報の型定義（拡張版）
 export interface PropertyInfo {
-  buildingAge: number;      // 築年数
-  location: string;         // 立地（住所）
-  price: number;           // 購入金額
+  name: string;            // 物件名
+  address: string;         // 住所
+  price: string;           // 価格（文字列形式）
+  yield: string;           // 利回り
+  notes: string;           // 特記事項
+  buildingAge?: number;    // 築年数
+  location?: string;       // 立地（住所）
+  priceNumber?: number;    // 購入金額（数値）
   type?: string;           // 物件タイプ（マンション、戸建てなど）
   area?: number;           // 面積（㎡）
   description?: string;    // その他の情報
@@ -93,7 +115,7 @@ export interface IpcResponse<T = any> {
   error?: string;
 }
 
-// 議事録生成リクエストの型定義
+// 議事録生成リクエストの型定義（UI用）
 export interface GenerateMinutesRequest {
   date: Date;
   startTime: string;
@@ -104,12 +126,51 @@ export interface GenerateMinutesRequest {
   gmailEndDate: Date;
 }
 
+// Gemini API 議事録生成リクエストの型定義
+export interface GeminiGenerateMinutesRequest {
+  date: Date;
+  startTime: string;
+  endTime: string;
+  location: 'tokyo' | 'nagano' | 'online';
+  participants: Participant[];
+  propertyList: PropertyInfo[];
+  companyName: string;
+}
+
 // 議事録生成結果の型定義
 export interface GenerateMinutesResult {
   documentId: string;
   documentUrl: string;
   fileName: string;
   createdAt: Date;
+}
+
+// Google Docs ドキュメント作成結果の型定義
+export interface CreateDocumentResult {
+  documentId: string;
+  documentUrl: string;
+}
+
+// Google Drive フォルダー情報の型定義
+export interface FolderInfo {
+  id: string;
+  name: string;
+  webViewLink: string;
+}
+
+// 議事録アイテムの型定義（Gemini API レスポンス用）
+export interface MinutesItem {
+  title: string;
+  content: string;
+}
+
+// 議事録コンテンツの型定義（Gemini API レスポンス用）
+export interface MinutesContentGenerated {
+  title: string;
+  opening: string;
+  attendees: string;
+  items: MinutesItem[];
+  closing: string;
 }
 
 // バリデーション結果の型定義
