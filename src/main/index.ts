@@ -1,7 +1,12 @@
 import { app, BrowserWindow, ipcMain, Menu } from 'electron';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import * as dotenv from 'dotenv';
-import { ConfigManager } from '../utils/config';
+import { ConfigManager } from '../utils/config.js';
+
+// ESMでの__dirnameの代替
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // 環境変数の読み込み（最初に実行）
 dotenv.config();
@@ -21,7 +26,8 @@ function createMainWindow(): void {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      sandbox: false,
+      preload: path.join(__dirname, 'preload.mjs')
     },
     icon: path.join(__dirname, '../../assets/icon.png'),
     title: '不動産賃貸業 議事録自動生成ツール'
@@ -56,7 +62,8 @@ function createSettingsWindow(): void {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
+      sandbox: false,
+      preload: path.join(__dirname, 'preload.mjs')
     },
     title: '設定'
   });

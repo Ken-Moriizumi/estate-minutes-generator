@@ -2,6 +2,7 @@
   "name": "estate-minutes-generator",
   "version": "1.0.0",
   "description": "不動産賃貸業法人向け議事録自動生成ツール",
+  "type": "module",
   "main": "dist/main/index.js",
   "scripts": {
     "start": "npm run build && electron .",

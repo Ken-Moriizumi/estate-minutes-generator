@@ -195,6 +195,11 @@ GEMINI_API_KEY=xxx
 - **Google APIs Client Library**（googleapis）
 - **@google/generative-ai**（Gemini API SDK）
 - **electron-store**（設定の永続化）
+  - **注意**: electron-store v10はESM-onlyパッケージです。
+  - 使用するには以下が必須:
+    - package.jsonに`"type": "module"`
+    - tsconfig.jsonで`module: "ESNext"`と`moduleResolution: "bundler"`
+    - webPreferencesで`sandbox: false`
 - **flatpickr**（日付範囲選択UI）
 - **dotenv**（環境変数管理）
 
@@ -202,6 +207,96 @@ GEMINI_API_KEY=xxx
 - **Puppeteer**（楽待スクレイピング用）
 - **youtube-transcript**（字幕取得用）
 - **ytdl-core**（動画情報取得用）
+
+---
+
+### 5.4 ESM (ECMAScript Modules) 対応
+
+Phase 1では、最新のJavaScript標準であるESMを採用しています。
+これにより、electron-store v10などのESM-onlyパッケージを使用できます。
+
+#### 必須設定
+
+**package.json**
+```json
+{
+  "type": "module"
+}
+```
+
+**tsconfig.json**
+```json
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  }
+}
+```
+
+#### ESM特有の実装パターン
+
+**1. import文での.js拡張子（必須）**
+
+TypeScriptファイルでも、コンパイル後の`.js`ファイルを参照:
+
+```typescript
+// ✓ 正しい
+import { ConfigManager } from '../utils/config.js';
+
+// ✗ エラー
+import { ConfigManager } from '../utils/config';
+```
+
+**2. __dirnameの代替実装**
+
+```typescript
+import { fileURLToPath } from 'url';
+import * as path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+```
+
+**3. Preloadスクリプトの拡張子**
+
+- ソースファイル: `.mts`
+- コンパイル後: `.mjs`
+- TypeScriptが自動的に変換
+
+**4. sandbox設定**
+
+electron-store使用のため、`sandbox: false`が必要:
+
+```typescript
+webPreferences: {
+  nodeIntegration: false,
+  contextIsolation: true,
+  sandbox: false,  // electron-storeのため
+  preload: path.join(__dirname, 'preload.mjs')
+}
+```
+
+**セキュリティ**: `contextIsolation`と`nodeIntegration: false`を維持することで、
+sandboxを無効化してもセキュリティは確保されます。
+
+#### よくあるエラーと解決方法
+
+**"Cannot find module"**
+- **原因**: import文に`.js`拡張子が不足
+- **解決**: 全てのローカルimportに`.js`を追加
+
+**"__dirname is not defined"**
+- **原因**: ESMでは`__dirname`が使用不可
+- **解決**: `fileURLToPath(import.meta.url)`を使用
+
+**"store.get is not a function"**
+- **原因**: sandboxモードでelectron-storeが動作しない
+- **解決**: `sandbox: false`を設定
+
+詳細なトラブルシューティングはphase1.mdを参照してください。
+
+---
 
 ## 6. 実装フロー
 
@@ -280,6 +375,13 @@ Electronアプリを起動し、メイン画面を表示
 - APIキーの安全な管理（環境変数使用）
 - Googleアカウントの認証トークン管理
 - 個人情報を含むメールデータの適切な処理
+
+**sandbox: false について**:
+electron-store使用のため`sandbox: false`を設定していますが、
+以下の対策によりセキュリティは維持されます:
+- `contextIsolation: true`: レンダラープロセスを分離
+- `nodeIntegration: false`: Node.js APIへの直接アクセスを防止
+- preloadスクリプトでのAPI制限: 必要最小限のAPIのみ公開
 
 ## 8. 今後の拡張可能性
 
@@ -423,16 +525,16 @@ config.json
 ```json
 {
   "name": "estate-minutes-generator",
+  "type": "module",
+  "main": "dist/main/index.js",
   "version": "1.0.0",
   "description": "不動産賃貸業法人向け議事録自動生成ツール",
-  "main": "dist/main/index.js",
   "scripts": {
     "start": "npm run build && electron .",
     "dev": "npm run build && electron . --dev",
     "build": "tsc",
     "watch": "tsc --watch",
     "clean": "rm -rf dist",
-    "postinstall": "npm run build",
     "build-win": "npm run build && electron-builder --win",
     "build-mac": "npm run build && electron-builder --mac",
     "package": "npm run build && electron-builder --win --mac"
@@ -447,7 +549,7 @@ config.json
     "@types/node": "^22.0.0"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.31.0",
+    "@google/generative-ai": "^0.21.0",  // 注: 最新は0.31.0だが、0.21.0で動作確認済み
     "@google-cloud/local-auth": "^3.0.0",
     "googleapis": "^144.0.0",
     "flatpickr": "^4.6.13",
@@ -488,7 +590,7 @@ config.json
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
+    "module": "ESNext",
     "lib": ["ES2020", "DOM"],
     "outDir": "./dist",
     "rootDir": "./src",
@@ -497,12 +599,12 @@ config.json
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node",
-    "types": ["node"]
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "allowSyntheticDefaultImports": true
   },
   "include": [
-    "src/**/*.ts",
-    "src/**/*.d.ts"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
@@ -514,7 +616,10 @@ config.json
 }
 ```
 
-注: レンダラープロセスのTypeScriptファイルも含めるよう修正しました。
+**重要**: Phase 1ではESM (ECMAScript Modules) を採用しています。
+- `module: "ESNext"`: 最新のESM構文を出力
+- `moduleResolution: "bundler"`: Vite、esbuildなどのモダンバンドラー向けの解決戦略
+- 詳細はphase1.mdの「ESM対応の実装詳細」セクションを参照
 
 ### 15.6 Claude Codeを使用した開発手順
 

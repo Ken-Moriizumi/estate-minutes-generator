@@ -65,11 +65,20 @@
   - 設定ファイル（`config.json`）の管理
   - 型定義による設定値の安全性確保
 
+#### Day 6: ESM対応の実装
+- [ ] package.jsonに`"type": "module"`を追加
+- [ ] tsconfig.jsonの`module`を`"ESNext"`に変更
+- [ ] tsconfig.jsonの`moduleResolution`を`"bundler"`に変更
+- [ ] 全てのローカルモジュールimportに`.js`拡張子を追加
+- [ ] `__dirname`の代替実装（`import.meta.url`使用）
+- [ ] Preloadスクリプトを`.mts`拡張子に変更
+- [ ] `webPreferences`に`sandbox: false`を追加（electron-store使用のため）
+
 ---
 
 ### **Week 2: Google サービス統合**
 
-#### Day 6-7: Google OAuth 2.0 認証
+#### Day 7-8: Google OAuth 2.0 認証
 - [ ] `src/services/google/auth.ts` の実装
   - Google OAuth 2.0 フロー実装
   - アクセストークンの取得・更新
@@ -79,7 +88,7 @@
 - [ ] 設定画面への「Google アカウント連携」ボタン追加
 - [ ] 認証成功時の通知とトークン保存
 
-#### Day 8-9: Gmail API 統合
+#### Day 9-10: Gmail API 統合
 - [ ] `src/services/google/gmail.ts` の実装
   - Gmail API クライアント初期化
   - 指定期間・ラベルでのメール検索
@@ -88,7 +97,7 @@
   - 型定義（PropertyInfo, EmailData など）
 - [ ] Gmail からのデータ取得テスト
 
-#### Day 10-11: Gemini API 統合
+#### Day 11-12: Gemini API 統合
 - [ ] `src/services/google/gemini.ts` の実装
   - Gemini 2.5 Pro クライアント初期化
   - プロンプト生成ロジック
@@ -102,7 +111,7 @@
   - 非常勤役員: 初心者レベル、平易な言葉
 - [ ] Gemini API のテストとプロンプト調整
 
-#### Day 12: Google Docs/Drive API 統合
+#### Day 13: Google Docs/Drive API 統合
 - [ ] `src/services/google/docs.ts` の実装
   - Google Docs API クライアント初期化
   - ドキュメント作成
@@ -120,7 +129,7 @@
 
 ### **Week 3: メイン画面実装と統合テスト**
 
-#### Day 13-14: メイン画面 UI 実装
+#### Day 14-15: メイン画面 UI 実装
 - [ ] `src/renderer/index.html` の作成
   - `docs/main-screen-design.html` をベースに実装
   - Phase 1 バッジの表示
@@ -139,7 +148,7 @@
   - バリデーション機能
   - 型定義（FormData, ValidationResult など）
 
-#### Day 15-16: 議事録生成フロー統合
+#### Day 16-17: 議事録生成フロー統合
 - [ ] `src/services/minutesGenerator.ts` の実装
   - 全体の処理フロー統合
     1. 入力値の検証
@@ -164,7 +173,7 @@
   - Google Docs URL の表示
   - ブラウザで開くボタン
 
-#### Day 17: ユーティリティ実装
+#### Day 18: ユーティリティ実装
 - [ ] `src/utils/logger.ts` の実装
   - ログレベル管理（info, warn, error）
   - ファイルへのログ出力
@@ -179,7 +188,7 @@
   - ファイル名用の日付文字列生成
   - 型定義（DateFormat など）
 
-#### Day 18-19: 統合テストとリファインメント
+#### Day 19-20: 統合テストとリファインメント
 - [ ] エンドツーエンドテスト
   - 設定保存 → 認証 → メール取得 → 議事録生成 → 保存の全フロー
 - [ ] エラーケースのテスト
@@ -194,7 +203,7 @@
   - API 呼び出しの最適化
   - 非同期処理の改善
 
-#### Day 20-21: ドキュメント作成とリリース準備
+#### Day 21: ドキュメント作成とリリース準備
 - [ ] README.md の作成
   - プロジェクト概要
   - インストール手順
@@ -413,7 +422,7 @@ export interface LogEntry {
 ### dependencies
 ```json
 {
-  "@google/generative-ai": "^0.31.0",
+  "@google/generative-ai": "^0.21.0",  // 注: 最新は0.31.0だが、0.21.0で動作確認済み
   "@google-cloud/local-auth": "^3.0.0",
   "googleapis": "^144.0.0",
   "flatpickr": "^4.6.13",
@@ -425,15 +434,18 @@ export interface LogEntry {
 ### scripts
 ```json
 {
-  "start": "npm run build && electron .",
-  "dev": "npm run build && electron . --dev",
-  "build": "tsc",
-  "watch": "tsc --watch",
-  "clean": "rm -rf dist",
-  "postinstall": "npm run build",
-  "build-win": "npm run build && electron-builder --win",
-  "build-mac": "npm run build && electron-builder --mac",
-  "package": "npm run build && electron-builder --win --mac"
+  "type": "module",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "start": "npm run build && electron .",
+    "dev": "npm run build && electron . --dev",
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "clean": "rm -rf dist",
+    "build-win": "npm run build && electron-builder --win",
+    "build-mac": "npm run build && electron-builder --mac",
+    "package": "npm run build && electron-builder --win --mac"
+  }
 }
 ```
 
@@ -619,7 +631,7 @@ Thumbs.db
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
+    "module": "ESNext",
     "lib": ["ES2020", "DOM"],
     "outDir": "./dist",
     "rootDir": "./src",
@@ -628,12 +640,12 @@ Thumbs.db
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node",
-    "types": ["node"]
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "allowSyntheticDefaultImports": true
   },
   "include": [
-    "src/**/*.ts",
-    "src/**/*.d.ts"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
@@ -645,7 +657,8 @@ Thumbs.db
 }
 ```
 
-注: レンダラープロセスのTypeScriptファイルも含めるよう修正しました。
+注: ESM (ES Modules) 対応のため、`module: "ESNext"` と `moduleResolution: "bundler"` を使用しています。
+詳細は後述の「ESM対応の実装詳細」セクションを参照してください。
 
 ---
 
@@ -939,11 +952,6 @@ ipcMain.handle('generate-minutes', async (event, request: GenerateMinutesRequest
 - [ ] Gemini API キー取得
 - [ ] `.env` ファイル作成
 
-### Week 1 完了時
-- [ ] Electron アプリが起動する
-- [ ] 設定画面が表示される
-- [ ] 設定が保存・読み込みできる
-
 ### Week 2 完了時
 - [ ] Google アカウント認証ができる
 - [ ] Gmail からメールを取得できる
@@ -955,6 +963,200 @@ ipcMain.handle('generate-minutes', async (event, request: GenerateMinutesRequest
 - [ ] エンドツーエンドで議事録が生成できる
 - [ ] エラー処理が適切に動作する
 - [ ] Windows/Mac でビルドできる
+
+---
+
+## 🔧 ESM対応の実装詳細
+
+Phase 1では、最新のJavaScript標準であるESM (ECMAScript Modules) を採用しています。
+これにより、electron-store v10などのESM-onlyパッケージを使用できます。
+
+### 必須設定
+
+#### 1. package.json
+```json
+{
+  "type": "module"
+}
+```
+この設定により、`.js`ファイルがESMとして扱われます。
+
+#### 2. tsconfig.json
+```json
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  }
+}
+```
+
+- `module: "ESNext"`: 最新のESM構文を出力
+- `moduleResolution: "bundler"`: Vite、esbuildなどのモダンバンドラー向けの解決戦略
+
+#### 3. import文での.js拡張子
+
+**重要**: TypeScriptファイルでも、コンパイル後の`.js`ファイルを参照する必要があります。
+
+```typescript
+// ✓ 正しい
+import { ConfigManager } from '../utils/config.js';
+
+// ✗ エラー: Cannot find module
+import { ConfigManager } from '../utils/config';
+```
+
+#### 4. __dirnameの代替実装
+
+ESMでは`__dirname`と`__filename`が使用できません。以下のコードで代替します:
+
+```typescript
+import { fileURLToPath } from 'url';
+import * as path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+```
+
+この実装は`src/main/index.ts`で使用されています。
+
+#### 5. Preloadスクリプトの拡張子
+
+- **ソースファイル**: `src/main/preload.mts` (`.mts`拡張子)
+- **コンパイル後**: `dist/main/preload.mjs` (`.mjs`拡張子)
+- **webPreferencesでの参照**: `preload.mjs`
+
+TypeScriptコンパイラは`.mts`ファイルを自動的に`.mjs`として出力します。
+
+#### 6. sandbox設定
+
+electron-storeを使用するため、sandboxを無効化する必要があります:
+
+```typescript
+webPreferences: {
+  nodeIntegration: false,
+  contextIsolation: true,
+  sandbox: false  // electron-storeのため必須
+  preload: path.join(__dirname, 'preload.mjs')
+}
+```
+
+**セキュリティ対策**:
+- `contextIsolation: true`を維持してレンダラーを分離
+- `nodeIntegration: false`を維持してNode.js APIへの直接アクセスを防止
+- preloadスクリプトでAPIを厳密に制限
+
+### electron-store使用上の注意
+
+#### 設定ファイルの保存場所
+electron-storeは、OSごとに適切な場所に設定ファイルを自動保存します:
+
+- **macOS**: `~/Library/Application Support/<app-name>/config.json`
+- **Windows**: `%APPDATA%\<app-name>\config.json`
+- **Linux**: `~/.config/<app-name>/config.json`
+
+#### なぜsandbox: falseが必要か
+
+electron-storeはNode.jsの`fs`モジュールを内部で使用するため、sandboxモードでは動作しません。
+しかし、`contextIsolation`と`nodeIntegration: false`を維持することで、セキュリティは確保されます。
+
+---
+
+## 🐛 トラブルシューティング
+
+### "Cannot find module" エラー
+
+**原因**: ESM環境でのimport文に拡張子が不足
+
+**エラー例**:
+```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/path/to/config'
+```
+
+**解決方法**: 全てのローカルモジュールimportに`.js`拡張子を追加
+```typescript
+import { ConfigManager } from '../utils/config.js';  // .jsを追加
+```
+
+### "__dirname is not defined" エラー
+
+**原因**: ESM環境では`__dirname`が使用できない
+
+**エラー例**:
+```
+ReferenceError: __dirname is not defined
+```
+
+**解決方法**: `fileURLToPath(import.meta.url)`を使用
+```typescript
+import { fileURLToPath } from 'url';
+import * as path from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+```
+
+### "store.get is not a function" エラー
+
+**原因**: sandboxモードでelectron-storeが動作しない
+
+**解決方法**: webPreferencesで`sandbox: false`を設定
+```typescript
+webPreferences: {
+  sandbox: false,
+  contextIsolation: true,
+  nodeIntegration: false
+}
+```
+
+### "Cannot use import statement outside a module" (preload)
+
+**原因**: PreloadスクリプトがESMとして認識されていない
+
+**解決方法**:
+1. ソースファイルを`.mts`拡張子にする
+2. コンパイル後は`.mjs`になる
+3. webPreferencesで`preload.mjs`を指定
+
+### "SyntaxError: Unexpected token 'export'" エラー
+
+**原因**: `module: "commonjs"`のままelectron-storeを使用しようとしている
+
+**解決方法**: tsconfig.jsonで`module: "ESNext"`に変更
+```json
+{
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler"
+  }
+}
+```
+
+---
+
+## ✅ Week 1 完了チェックリスト（修正版）
+
+### 基本機能
+- [x] Electron アプリが起動する
+- [x] 設定画面が表示される
+- [x] 設定が保存・読み込みできる（electron-store動作確認）
+- [x] メイン画面と設定画面の切り替えが動作する
+- [x] 場所選択による参加者自動設定が動作する
+- [x] Flatpickrによる日付・時刻選択が動作する
+
+### ESM対応
+- [x] package.jsonに`"type": "module"`が設定されている
+- [x] tsconfig.jsonで`module: "ESNext"`と`moduleResolution: "bundler"`が設定されている
+- [x] import文に`.js`拡張子が付いている
+- [x] `import.meta.url`を使った`__dirname`代替が実装されている
+- [x] preloadスクリプトが`.mts` → `.mjs`として正しくコンパイルされる
+- [x] `sandbox: false`でelectron-storeが動作する
+
+### セキュリティ
+- [x] `contextIsolation: true`が設定されている
+- [x] `nodeIntegration: false`が設定されている
+- [x] Content Security Policyが設定されている
+- [x] preloadスクリプトでAPIが適切に公開されている
 
 ---
 
