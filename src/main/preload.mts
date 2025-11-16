@@ -57,6 +57,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return ipcRenderer.invoke('test-gemini-api', query);
     },
 
+    // Drive フォルダ一覧取得
+    listDriveFolders: (parentFolderId?: string) => {
+        return ipcRenderer.invoke('list-drive-folders', parentFolderId);
+    },
+
+    // Docs/Drive API テスト
+    testDocsDrive: (folderId?: string) => {
+        return ipcRenderer.invoke('test-docs-drive', folderId);
+    },
+
     // プログレス通知の受信
     onProgress: (callback: (progress: any) => void) => {
         ipcRenderer.on('generation-progress', (event: any, progress: any) => {

@@ -11,7 +11,9 @@ import {
 } from '../services/google/auth.js';
 import { searchEmails, getLabelsList } from '../services/google/gmail.js';
 import { generateMinutesFromEmails } from '../services/google/gemini.js';
-import type { GmailSearchQuery, GeminiGenerateMinutesRequest, Participant } from '../types/index.js';
+import { getDriveFolderList, moveAndRenameDocument } from '../services/google/drive.js';
+import { createMinutesDocument } from '../services/google/docs.js';
+import type { GmailSearchQuery, GeminiGenerateMinutesRequest, Participant, DocsCreateRequest } from '../types/index.js';
 
 // ESMでの__dirnameの代替
 const __filename = fileURLToPath(import.meta.url);
@@ -369,6 +371,75 @@ function setupIpcHandlers(): void {
       return { success: true, data: minutesText };
     } catch (error) {
       console.error('Gemini API テストエラー:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // Google Drive フォルダ一覧取得
+  ipcMain.handle('list-drive-folders', async (_event: any, parentFolderId?: string) => {
+    try {
+      const folderList = await getDriveFolderList(parentFolderId);
+      return { success: true, data: folderList };
+    } catch (error) {
+      console.error('Drive フォルダ一覧取得エラー:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // Google Docs/Drive API テスト
+  ipcMain.handle('test-docs-drive', async (_event: any, folderId?: string) => {
+    try {
+      console.log('Docs/Drive API テスト開始');
+
+      // 1. テストドキュメントを作成
+      const testTitle = `テスト議事録_${new Date().toLocaleDateString('ja-JP')}`;
+      const testContent = `
+【議事録】物件検討会議
+
+日時: ${new Date().toLocaleDateString('ja-JP')}
+場所: テスト環境
+
+【議題】
+1. Google Docs API 接続テスト
+
+【議事内容】
+1. Google Docs API 接続テスト
+   検討結果: API接続が正常に動作していることを確認した。
+
+【結論】
+Google Docs APIとの連携が正常に動作している。
+
+以上
+`;
+
+      const request: DocsCreateRequest = {
+        title: testTitle,
+        minutesText: testContent
+      };
+
+      const docResult = await createMinutesDocument(request);
+      console.log('テストドキュメント作成完了:', docResult.documentId);
+
+      // 2. フォルダが指定されている場合は移動
+      if (folderId) {
+        console.log('ドキュメントをフォルダに移動:', folderId);
+        await moveAndRenameDocument(docResult.documentId, folderId, testTitle);
+      }
+
+      return {
+        success: true,
+        data: {
+          documentId: docResult.documentId,
+          documentUrl: docResult.documentUrl,
+          message: folderId
+            ? 'テストドキュメントを作成し、指定フォルダに移動しました'
+            : 'テストドキュメントを作成しました（マイドライブに保存）'
+        }
+      };
+    } catch (error) {
+      console.error('Docs/Drive API テストエラー:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       return { success: false, error: errorMessage };
     }

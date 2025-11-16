@@ -91,6 +91,7 @@ export interface AppConfig {
   };
   google: {
     driveFolderPath: string;
+    driveFolderId?: string;  // 選択されたフォルダID
     gmailLabel: string;
     refreshToken?: string;
   };
@@ -156,6 +157,40 @@ export interface FolderInfo {
   id: string;
   name: string;
   webViewLink: string;
+}
+
+// Google Drive フォルダの型定義（簡易版）
+export interface DriveFolder {
+  id: string;
+  name: string;
+  parents?: string[];  // 親フォルダID
+}
+
+// Google Drive フォルダリストの型定義（ブラウザ用）
+export interface DriveFolderList {
+  folders: DriveFolder[];           // 現在のフォルダ配下のフォルダ一覧
+  currentFolder?: DriveFolder;      // 現在のフォルダ情報
+  breadcrumb: DriveFolder[];        // パンくずリスト（ルートから現在まで）
+}
+
+// Google Docs ドキュメント作成リクエストの型定義
+export interface DocsCreateRequest {
+  title: string;
+  minutesText: string;
+}
+
+// Google Docs ドキュメント作成レスポンスの型定義
+export interface DocsCreateResponse {
+  documentId: string;
+  documentUrl: string;
+  fileName: string;
+}
+
+// Google Drive ファイル移動リクエストの型定義
+export interface DriveMoveRequest {
+  documentId: string;
+  folderId: string;
+  fileName: string;
 }
 
 // 議事録アイテムの型定義（Gemini API レスポンス用）

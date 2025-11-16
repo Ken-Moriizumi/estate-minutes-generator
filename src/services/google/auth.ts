@@ -17,7 +17,8 @@ const __dirname = path.dirname(__filename);
 const SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/documents',
-  'https://www.googleapis.com/auth/drive.file'
+  'https://www.googleapis.com/auth/drive.file',  // アプリが作成したファイルの管理
+  'https://www.googleapis.com/auth/drive'        // 全Driveへのアクセス（フォルダブラウザ用）
 ];
 
 // credentials.jsonのパス（プロジェクトルート）

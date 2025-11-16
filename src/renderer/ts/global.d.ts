@@ -14,6 +14,8 @@ interface ElectronAPI {
     fetchGmailLabels: () => Promise<{ success: boolean; data?: Array<{ id: string; name: string }>; error?: string }>;
     fetchGmailData: (query: any) => Promise<{ success: boolean; data?: any[]; error?: string }>;
     testGeminiApi: (query: any) => Promise<{ success: boolean; data?: string; error?: string }>;
+    listDriveFolders: (parentFolderId?: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+    testDocsDrive: (folderId?: string) => Promise<{ success: boolean; data?: any; error?: string }>;
     onProgress: (callback: (progress: any) => void) => void;
     onComplete: (callback: (result: any) => void) => void;
     onError: (callback: (error: any) => void) => void;

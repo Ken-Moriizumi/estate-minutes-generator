@@ -147,9 +147,41 @@
                 <div class="settings-card">
                     <h3 class="card-title">Google Drive設定</h3>
                     <div class="form-group">
-                        <label for="driveFolderPath" class="form-label">保存先フォルダ名</label>
-                        <input type="text" id="driveFolderPath" class="form-input" placeholder="定例会" value="定例会">
-                        <p class="form-hint">議事録を保存するGoogle Driveのフォルダ名</p>
+                        <label class="form-label">保存先フォルダ</label>
+                        <div id="selectedFolderPath" style="padding: 12px; background: #f5f5f5; border-radius: 4px; margin-bottom: 12px; font-size: 14px; color: #333;">
+                            <span id="folderPathText">マイドライブ</span>
+                        </div>
+                        <button class="btn btn-secondary" id="browseFolderBtn">フォルダを選択</button>
+                        <p class="form-hint">議事録を保存するGoogle Driveのフォルダを選択します</p>
+                    </div>
+
+                    <!-- フォルダブラウザ（デフォルトは非表示） -->
+                    <div id="folderBrowser" style="display: none; margin-top: 20px; padding: 16px; background: #fafafa; border: 1px solid #ddd; border-radius: 6px;">
+                        <h4 style="margin: 0 0 12px 0; font-size: 15px; font-weight: 600;">フォルダを選択</h4>
+
+                        <!-- パンくずリスト -->
+                        <div id="breadcrumb" style="margin-bottom: 12px; padding: 8px 12px; background: white; border-radius: 4px; font-size: 13px; color: #666;">
+                            📂 <span id="breadcrumbText">マイドライブ</span>
+                        </div>
+
+                        <!-- フォルダ一覧 -->
+                        <div id="folderList" style="max-height: 300px; overflow-y: auto; background: white; border: 1px solid #ddd; border-radius: 4px; padding: 8px;">
+                            <div style="padding: 20px; text-align: center; color: #999;">
+                                読み込み中...
+                            </div>
+                        </div>
+
+                        <!-- アクションボタン -->
+                        <div style="margin-top: 12px; display: flex; gap: 8px; justify-content: flex-end;">
+                            <button class="btn btn-secondary" id="selectCurrentFolderBtn">このフォルダを選択</button>
+                            <button class="btn btn-secondary" id="cancelBrowseBtn">キャンセル</button>
+                        </div>
+                    </div>
+
+                    <!-- Docs/Drive API テスト -->
+                    <div class="form-group" style="margin-top: 20px;">
+                        <button class="btn btn-secondary" id="testDocsDriveBtn">Docs/Drive APIをテスト</button>
+                        <p class="form-hint">テスト議事録を作成して、選択したフォルダに保存します</p>
                     </div>
                 </div>
             </section>

@@ -1216,21 +1216,22 @@ webPreferences: {
 
 **注**: 当初計画の「メール本文から物件情報を抽出」「JSONレスポンスのパース」は、「メールデータを直接Geminiに渡す」方式に変更したため不要になりました。
 
-### Google Docs/Drive API 統合（Day 13）
-- [ ] Google Docs ドキュメント作成
-- [ ] 議事録フォーマットの適用
-- [ ] Google Drive フォルダー管理
-- [ ] ファイルの保存と移動
+### Google Docs/Drive API 統合（Day 13-14）
+- [x] Google Docs ドキュメント作成
+- [x] テキスト挿入とフォーマット適用
+- [x] Google Drive フォルダー管理（ブラウザUI付き）
+- [x] ファイルの保存と移動
+- [x] 議事録生成オーケストレータの実装
 
 ---
 
-**次のステップ**: Week 2 Day 13-14 の Google Docs/Drive API 統合を開始してください。
+**次のステップ**: Phase 1 完了。Phase 2（Week 3以降）の計画を確認してください。
 
 ---
 
-## 📝 実装フィードバック（Day 1-12完了時点）
+## 📝 実装フィードバック（Week 2完了時点）
 
-このセクションは、Day 1-12の実装を通じて得られた知見と、当初計画からの変更点を記録しています。
+このセクションは、Week 2（Day 1-14）の実装を通じて得られた知見と、当初計画からの変更点を記録しています。
 
 ### Week 2 Day 11-12: Gemini API統合の設計変更
 
@@ -1527,5 +1528,141 @@ estate-minutes-generator/
 3. **段階的テスト**: Gmail → Gemini の2段階テストにより、問題の切り分けが容易
 4. **UX配慮**: DevToolsの自動起動無効化など、小さな改善が重要
 5. **プライバシー**: 例文やサンプルデータにも個人情報を含めない
+6. **OAuthスコープ設計**: 機能ごとに適切なスコープを組み合わせる（drive + drive.file）
+
+---
+
+### Week 2 Day 13-14: Google Docs/Drive API統合の実装詳細
+
+#### 実装した機能
+
+**1. Google Docs API モジュール** ([src/services/google/docs.ts](src/services/google/docs.ts))
+- ドキュメント作成（`createDocument`）
+- テキスト挿入（`insertText`）
+- 議事録ドキュメント作成（`createMinutesDocument`）
+- ドキュメント内容取得（`getDocumentContent`）
+
+**2. Google Drive API モジュール** ([src/services/google/drive.ts](src/services/google/drive.ts))
+- ルートフォルダ一覧取得（`listRootFolders`）
+- サブフォルダ一覧取得（`listFoldersInFolder`）
+- フォルダ情報取得（`getFolderInfo`）
+- フォルダパス取得（`getFolderPath` - パンくずリスト用）
+- フォルダブラウザ用データ取得（`getDriveFolderList`）
+- ドキュメント移動・リネーム（`moveAndRenameDocument`）
+- フォルダ作成・検索（`createFolder`, `findFolderByName`, `getOrCreateFolder`）
+
+**3. 議事録生成オーケストレータ** ([src/services/minutesGenerator.ts](src/services/minutesGenerator.ts))
+- Gmail → Gemini → Docs → Drive の統合ワークフロー
+- 参加者情報の自動マッピング（設定から役職を推定）
+- バリデーション機能（`generateMinutesWithValidation`）
+
+**4. フォルダブラウザUI** ([src/renderer/settings.html](src/renderer/settings.html), [src/renderer/ts/settings.ts](src/renderer/ts/settings.ts))
+- ネストしたフォルダ構造のナビゲーション
+- パンくずリスト表示
+- フォルダ選択機能
+- 選択フォルダの保存（パスとID両方）
+
+#### 技術的課題と解決策
+
+**問題1: OAuthスコープ不足によるフォルダ一覧取得失敗**
+
+- **問題**: 初期実装で `drive.file` スコープのみを使用していたため、既存フォルダが取得できず空配列が返された
+- **原因**: `drive.file` スコープはアプリが作成したファイルのみにアクセス可能
+- **解決策**: `drive` スコープを追加して、両方のスコープを組み合わせて使用
+  ```typescript
+  const SCOPES = [
+    'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/documents',
+    'https://www.googleapis.com/auth/drive.file',  // アプリが作成したファイルの管理
+    'https://www.googleapis.com/auth/drive'        // 全Driveへのアクセス（フォルダブラウザ用）
+  ];
+  ```
+- **実装場所**: [src/services/google/auth.ts:17-22](src/services/google/auth.ts#L17-L22)
+- **影響**: スコープ変更後は再認証が必要
+
+**問題2: 共有ドライブ対応の複雑さ**
+
+- **当初の要望**: 共有ドライブのフォルダも選択可能にしたい
+- **実装試行**: `listSharedDrives()` 機能を実装したが、権限エラーが発生
+- **最終判断**: ユーザーの判断により、マイドライブのみに機能を絞り込み
+- **教訓**: 機能範囲を明確にし、必要最小限から始めることの重要性
+
+#### 型定義の追加
+
+新規追加された型（[src/types/index.d.ts](src/types/index.d.ts)）:
+
+```typescript
+// Google Drive フォルダの型定義
+export interface DriveFolder {
+  id: string;
+  name: string;
+  parents?: string[];
+}
+
+// フォルダブラウザ用のデータ構造
+export interface DriveFolderList {
+  folders: DriveFolder[];           // 現在のフォルダ配下のフォルダ一覧
+  currentFolder?: DriveFolder;      // 現在のフォルダ情報
+  breadcrumb: DriveFolder[];        // パンくずリスト（ルートから現在まで）
+}
+
+// Google Docs ドキュメント作成リクエスト/レスポンス
+export interface DocsCreateRequest {
+  title: string;
+  minutesText: string;
+}
+
+export interface DocsCreateResponse {
+  documentId: string;
+  documentUrl: string;
+  fileName: string;
+}
+```
+
+#### プロジェクト構造の更新
+
+```
+estate-minutes-generator/
+├── src/
+│   ├── services/
+│   │   ├── google/
+│   │   │   ├── auth.ts              # OAuth 2.0（Day 7-8）
+│   │   │   ├── gmail.ts             # Gmail API（Day 9-10）
+│   │   │   ├── gemini.ts            # Gemini API（Day 11-12）
+│   │   │   ├── docs.ts              # 【新規】Google Docs API（Day 13-14）
+│   │   │   └── drive.ts             # 【新規】Google Drive API（Day 13-14）
+│   │   └── minutesGenerator.ts      # 【新規】議事録生成オーケストレータ（Day 13-14）
+```
+
+#### デバッグとトラブルシューティング
+
+**デバッグログの活用**:
+- 問題発生時に各レイヤー（Drive API → IPC Handler → Renderer）にデバッグログを追加
+- データフローを追跡することで、フォルダ一覧が空になる原因を特定
+- 問題解決後はデバッグログを削除してコードをクリーンに保つ
+
+**段階的テスト**:
+1. Docs/Drive APIテストボタンで個別機能を確認
+2. フォルダブラウザでUI動作を確認
+3. メイン画面から全体フローを確認
+
+#### Phase 1 完了時点の成果
+
+**Week 2（Day 1-14）で実装完了した機能**:
+- ✅ Electron基本セットアップ
+- ✅ UI設計（メイン画面・設定画面）
+- ✅ 設定管理（electron-store）
+- ✅ OAuth 2.0 認証
+- ✅ Gmail API統合
+- ✅ Gemini API統合（プロンプト外部ファイル化）
+- ✅ Google Docs API統合
+- ✅ Google Drive API統合（フォルダブラウザ付き）
+- ✅ 議事録生成の完全自動化（Gmail → Gemini → Docs → Drive）
+
+**残課題（Phase 2以降）**:
+- 年月フォルダ構造の自動作成（2025/01/のような階層）
+- エラーハンドリングの強化
+- プログレス表示の改善
+- ユーザードキュメントの作成
 
 ---

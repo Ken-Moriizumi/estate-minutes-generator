@@ -13,6 +13,7 @@ interface Settings {
     };
     google: {
         driveFolderPath: string;
+        driveFolderId?: string;
         gmailLabel: string;
     };
     participants: {
@@ -99,7 +100,14 @@ function applySettings(settings: Settings): void {
 
     // Google連携
     setInputValue('gmailLabel', settings.google.gmailLabel);
-    setInputValue('driveFolderPath', settings.google.driveFolderPath);
+
+    // Drive フォルダパスの表示
+    const folderPathText = document.getElementById('folderPathText');
+    if (folderPathText && settings.google.driveFolderPath) {
+        folderPathText.textContent = settings.google.driveFolderPath;
+        selectedFolderPath = settings.google.driveFolderPath;
+        selectedFolderId = (settings.google as any).driveFolderId;
+    }
 
     // 参加者情報
     setInputValue('presidentName', settings.participants.president);
@@ -159,6 +167,10 @@ function setupEventListeners(): void {
     const testGeminiBtn = document.getElementById('testGeminiBtn');
     testGeminiBtn?.addEventListener('click', handleTestGemini);
 
+    // Docs/Drive APIテストボタン
+    const testDocsDriveBtn = document.getElementById('testDocsDriveBtn');
+    testDocsDriveBtn?.addEventListener('click', handleTestDocsDrive);
+
     // 保存ボタン
     const saveBtn = document.getElementById('saveBtn');
     saveBtn?.addEventListener('click', handleSaveSettings);
@@ -166,6 +178,9 @@ function setupEventListeners(): void {
     // キャンセルボタン
     const cancelBtn = document.getElementById('cancelBtn');
     cancelBtn?.addEventListener('click', handleCancel);
+
+    // フォルダブラウザのイベントリスナー
+    setupFolderBrowserListeners();
 
     // 初期認証状態をチェック
     checkInitialAuthStatus();
@@ -553,6 +568,55 @@ async function handleTestGemini(): Promise<void> {
     }
 }
 
+/**
+ * Docs/Drive API テスト
+ */
+async function handleTestDocsDrive(): Promise<void> {
+    const testBtn = document.getElementById('testDocsDriveBtn') as HTMLButtonElement;
+
+    if (!window.electronAPI?.testDocsDrive) {
+        alert('Docs/Drive API機能が利用できません。');
+        return;
+    }
+
+    // 認証状態を確認
+    try {
+        const authStatus = await window.electronAPI.checkAuthStatus();
+        if (!authStatus.authenticated) {
+            alert('Googleアカウントと連携していません。\n先に認証を完了してください。');
+            return;
+        }
+    } catch (error) {
+        alert('認証状態の確認に失敗しました。');
+        return;
+    }
+
+    try {
+        testBtn.disabled = true;
+        testBtn.textContent = 'テスト中...';
+
+        // 選択されたフォルダIDを使用（設定済みの場合）
+        const result = await window.electronAPI.testDocsDrive(selectedFolderId);
+
+        if (result.success && result.data) {
+            const message = `${result.data.message}\n\nドキュメントURL:\n${result.data.documentUrl}`;
+
+            // ドキュメントを開くか確認
+            if (confirm(message + '\n\nドキュメントをブラウザで開きますか？')) {
+                window.open(result.data.documentUrl, '_blank');
+            }
+        } else {
+            alert('テストに失敗しました。\n\n' + (result.error || '不明なエラーが発生しました'));
+        }
+    } catch (error) {
+        console.error('Docs/Drive API テストエラー:', error);
+        alert('テスト中にエラーが発生しました。\n\n' + String(error));
+    } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = 'Docs/Drive APIをテスト';
+    }
+}
+
 // 設定の保存
 async function handleSaveSettings(): Promise<void> {
     try {
@@ -597,7 +661,8 @@ function collectSettings(): Settings {
             retrievalPeriod: parseInt(getInputValue('retrievalPeriod')) || 1
         },
         google: {
-            driveFolderPath: getInputValue('driveFolderPath'),
+            driveFolderPath: selectedFolderPath || 'マイドライブ',
+            driveFolderId: selectedFolderId,
             gmailLabel: getInputValue('gmailLabel')
         },
         participants: {
@@ -655,6 +720,192 @@ function setInputValue(id: string, value: string): void {
     const element = document.getElementById(id) as HTMLInputElement | HTMLSelectElement;
     if (element) {
         element.value = value;
+    }
+}
+
+// === Google Drive フォルダブラウザ ===
+
+// フォルダブラウザの状態管理
+let currentFolderId: string | undefined = undefined;
+let currentBreadcrumb: any[] = [];
+let selectedFolderId: string | undefined = undefined;
+let selectedFolderPath: string = '';
+
+// フォルダブラウザのイベントリスナーを設定
+function setupFolderBrowserListeners(): void {
+    const browseFolderBtn = document.getElementById('browseFolderBtn');
+    const cancelBrowseBtn = document.getElementById('cancelBrowseBtn');
+    const selectCurrentFolderBtn = document.getElementById('selectCurrentFolderBtn');
+
+    browseFolderBtn?.addEventListener('click', handleBrowseFolder);
+    cancelBrowseBtn?.addEventListener('click', handleCancelBrowse);
+    selectCurrentFolderBtn?.addEventListener('click', handleSelectCurrentFolder);
+}
+
+// フォルダブラウザを開く
+async function handleBrowseFolder(): Promise<void> {
+    const browser = document.getElementById('folderBrowser');
+    if (!browser) return;
+
+    // ブラウザを表示
+    browser.style.display = 'block';
+
+    // ルートフォルダを表示
+    await loadFolderList();
+}
+
+// フォルダ一覧を読み込む
+async function loadFolderList(parentFolderId?: string): Promise<void> {
+    if (!window.electronAPI?.listDriveFolders) {
+        return;
+    }
+
+    try {
+        const result = await window.electronAPI.listDriveFolders(parentFolderId);
+
+        if (!result.success) {
+            alert(`フォルダ一覧の取得に失敗しました: ${result.error}`);
+            return;
+        }
+
+        if (!result.data) {
+            alert('フォルダ一覧のデータが取得できませんでした');
+            return;
+        }
+
+        currentFolderId = parentFolderId;
+        const folderList = result.data;
+
+        // パンくずリストを更新
+        if (folderList.breadcrumb) {
+            currentBreadcrumb = folderList.breadcrumb;
+            updateBreadcrumb(currentBreadcrumb);
+        }
+
+        // フォルダ一覧を表示
+        if (Array.isArray(folderList.folders)) {
+            renderFolderList(folderList.folders);
+        } else {
+            renderFolderList([]);
+        }
+
+    } catch (error) {
+        console.error('フォルダ一覧取得エラー:', error);
+        alert('フォルダ一覧の取得に失敗しました');
+    }
+}
+
+// パンくずリストを更新
+function updateBreadcrumb(breadcrumb: any[]): void {
+    const breadcrumbText = document.getElementById('breadcrumbText');
+    if (!breadcrumbText) return;
+
+    if (breadcrumb.length === 0) {
+        breadcrumbText.textContent = 'マイドライブ';
+        breadcrumbText.innerHTML = '<span data-folder-id="">マイドライブ</span>';
+    } else {
+        const parts = ['<span data-folder-id="">マイドライブ</span>'];
+        breadcrumb.forEach((folder: any) => {
+            parts.push(`<span data-folder-id="${folder.id}">${folder.name}</span>`);
+        });
+        breadcrumbText.innerHTML = parts.join(' > ');
+    }
+
+    // パンくずリストのクリックイベントを設定
+    breadcrumbText.querySelectorAll('span[data-folder-id]').forEach(span => {
+        span.addEventListener('click', () => {
+            const folderId = (span as HTMLElement).getAttribute('data-folder-id') || undefined;
+            loadFolderList(folderId);
+        });
+        (span as HTMLElement).style.cursor = 'pointer';
+        (span as HTMLElement).style.textDecoration = 'underline';
+    });
+}
+
+// フォルダ一覧を表示
+function renderFolderList(folders: any[]): void {
+    const folderListEl = document.getElementById('folderList');
+    if (!folderListEl) {
+        return;
+    }
+
+    if (folders.length === 0) {
+        folderListEl.innerHTML = `
+            <div style="padding: 20px; text-align: center; color: #999;">
+                サブフォルダがありません
+            </div>
+        `;
+        return;
+    }
+
+    const folderHtml = folders.map(folder => `
+        <div class="folder-item" data-folder-id="${folder.id}" style="
+            padding: 10px 12px;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #333;
+        ">
+            📁 ${folder.name}
+        </div>
+    `).join('');
+
+    folderListEl.innerHTML = folderHtml;
+
+    // フォルダクリックイベントを設定
+    folderListEl.querySelectorAll('.folder-item').forEach(item => {
+        const folderId = (item as HTMLElement).getAttribute('data-folder-id');
+
+        // ホバースタイル
+        item.addEventListener('mouseenter', () => {
+            (item as HTMLElement).style.background = '#f0f0f0';
+        });
+        item.addEventListener('mouseleave', () => {
+            (item as HTMLElement).style.background = 'transparent';
+        });
+
+        // クリックイベント
+        item.addEventListener('click', () => {
+            if (folderId) {
+                loadFolderList(folderId);
+            }
+        });
+    });
+}
+
+// 現在のフォルダを選択
+function handleSelectCurrentFolder(): void {
+    selectedFolderId = currentFolderId;
+
+    // パスを構築
+    if (currentBreadcrumb.length === 0) {
+        selectedFolderPath = 'マイドライブ';
+    } else {
+        const pathParts = currentBreadcrumb.map((f: any) => f.name);
+        selectedFolderPath = 'マイドライブ > ' + pathParts.join(' > ');
+    }
+
+    // UIに反映
+    const folderPathText = document.getElementById('folderPathText');
+    if (folderPathText) {
+        folderPathText.textContent = selectedFolderPath;
+    }
+
+    // ブラウザを閉じる
+    handleCancelBrowse();
+
+    alert(`フォルダを選択しました: ${selectedFolderPath}`);
+}
+
+// ブラウザをキャンセル
+function handleCancelBrowse(): void {
+    const browser = document.getElementById('folderBrowser');
+    if (browser) {
+        browser.style.display = 'none';
     }
 }
 
