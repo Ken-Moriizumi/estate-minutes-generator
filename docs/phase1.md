@@ -251,6 +251,9 @@ estate-minutes-generator/
 │   ├── phase1.md                  # 本ドキュメント
 │   ├── main-screen-design.html    # メイン画面デザインサンプル
 │   └── settings-screen-design.html # 設定画面デザインサンプル
+├── prompts/                       # プロンプト管理（Day 11-12で追加）
+│   ├── minutes-template.md        # 議事録フォーマット定義
+│   └── minutes-guidelines.md      # 議事録作成ガイドライン
 ├── src/
 │   ├── main/
 │   │   └── index.ts              # Electron メインプロセス
@@ -1198,18 +1201,20 @@ webPreferences: {
 - [x] credentials.json.exampleの提供
 
 ### Gmail API 統合（Day 9-10）
-- [ ] Gmail API クライアント初期化
-- [ ] ラベルによるメール検索
-- [ ] 期間指定検索
-- [ ] メール本文の取得とデコード
-- [ ] IPC通信の実装
+- [x] Gmail API クライアント初期化
+- [x] ラベルによるメール検索
+- [x] 期間指定検索
+- [x] メール本文の取得とデコード
+- [x] IPC通信の実装
 
 ### Gemini API 統合（Day 11-12）
-- [ ] Gemini API クライアント初期化
-- [ ] メール本文から物件情報を抽出
-- [ ] 議事録コンテンツ生成
-- [ ] プロンプトエンジニアリング
-- [ ] JSONレスポンスのパース
+- [x] Gemini API クライアント初期化
+- [x] プロンプトの外部ファイル化
+- [x] 議事録コンテンツ生成
+- [x] プロンプトエンジニアリング
+- [x] テスト機能の実装
+
+**注**: 当初計画の「メール本文から物件情報を抽出」「JSONレスポンスのパース」は、「メールデータを直接Geminiに渡す」方式に変更したため不要になりました。
 
 ### Google Docs/Drive API 統合（Day 13）
 - [ ] Google Docs ドキュメント作成
@@ -1219,4 +1224,308 @@ webPreferences: {
 
 ---
 
-**次のステップ**: Week 2 Day 9-10 の Gmail API 統合を開始してください。
+**次のステップ**: Week 2 Day 13-14 の Google Docs/Drive API 統合を開始してください。
+
+---
+
+## 📝 実装フィードバック（Day 1-12完了時点）
+
+このセクションは、Day 1-12の実装を通じて得られた知見と、当初計画からの変更点を記録しています。
+
+### Week 2 Day 11-12: Gemini API統合の設計変更
+
+#### 当初計画からの主な変更点
+
+**1. 物件情報抽出機能の省略**
+
+- **当初の計画**: メール本文から物件情報を抽出 → 構造化データ化（JSON形式） → 議事録生成
+- **実装内容**: メールデータを直接Gemini APIに渡して解析
+- **変更理由**: メール内容のバリエーションが多く、事前抽出は困難。LLMに直接渡す方が柔軟で精度が高い
+- **影響**: `PropertyInfo`型の抽出機能は保留（Phase 2で必要に応じて実装）
+
+**2. プロンプトの外部ファイル化**
+
+- **実装内容**:
+  - `prompts/minutes-template.md` - 議事録フォーマット定義（57行）
+  - `prompts/minutes-guidelines.md` - 作成ガイドライン（122行）
+- **メリット**:
+  - コード変更なしでプロンプトを調整可能
+  - バージョン管理が容易
+  - プロンプトの見通しが良い
+- **実装場所**: [src/services/google/gemini.ts](src/services/google/gemini.ts#L36-L50) でファイル読み込み
+
+**3. 使用モデルの変更**
+
+- **当初の計画**: Gemini 2.5 Pro
+- **実装内容**: `gemini-2.0-flash-exp`
+- **変更理由**: Flash Expの方が高速で、議事録生成には十分な品質
+- **実装場所**: [src/services/google/gemini.ts:190](src/services/google/gemini.ts#L190)
+
+**4. 型定義の調整**
+
+新規追加された型:
+- `GeminiGenerateMinutesRequest` - Gemini APIリクエスト（[src/types/index.ts:33-41](src/types/index.ts#L33-L41)）
+  ```typescript
+  export interface GeminiGenerateMinutesRequest {
+    date: Date;
+    startTime: string;
+    endTime: string;
+    location: 'tokyo' | 'nagano' | 'online';
+    participants: Participant[];
+    companyName: string;
+  }
+  ```
+
+### プロンプトエンジニアリングの知見
+
+#### 1. 会話形式の抑制が最重要課題
+
+**問題**: 初期実装では以下のような会話形式が生成された
+```
+裕美取締役からは「駅からとても遠いので、入居者がいるのか心配です。」との意見が出た。
+```
+
+**解決策**:
+1. プロンプトとガイドラインの両方に「⚠️ 最重要ルール」セクションを追加
+2. 良い例・悪い例を明示（[prompts/minutes-guidelines.md:102-112](prompts/minutes-guidelines.md#L102-L112)）
+3. 「検討結果:」で始まる1段落形式を徹底
+4. gemini.tsのプロンプト内でも再度強調（[src/services/google/gemini.ts:145-163](src/services/google/gemini.ts#L145-L163)）
+
+**良い例**:
+```
+検討結果: 価格は500万円と安価だが、立地が武蔵嵐山駅徒歩39分と極めて悪く、賃貸需要が見込めない。高い空室リスクが想定されるため、見送るべきである。
+```
+
+#### 2. プロンプト構造の最適化
+
+効果的なプロンプト構造（[src/services/google/gemini.ts:118-172](src/services/google/gemini.ts#L118-L172)）:
+```
+1. システムロール定義
+2. 議事録テンプレート
+3. 議事録作成ガイドライン
+4. 会議情報（日時、場所、参加者）
+5. 参加者詳細（プロファイル）
+6. 物件情報メール
+7. 指示
+8. 重要な注意事項（会話形式禁止の再強調）
+```
+
+この順序で提示することで、フォーマット遵守率が向上しました。
+
+### Gmail API統合の実装詳細（Day 9-10）
+
+#### 1. ラベル検索の注意点
+
+**問題**: 日本語ラベル名の検索でエラーが発生
+**解決策**: ラベル名を引用符で囲む
+```typescript
+const query = `label:"${labelName}" after:${afterDate} before:${beforeDate}`;
+```
+**実装場所**: [src/services/google/gmail.ts:87](src/services/google/gmail.ts#L87)
+
+#### 2. メール本文取得の複雑さ
+
+**課題**:
+- マルチパートメール対応が必須
+- text/plain優先、なければtext/html
+- HTMLタグ除去とエンティティデコードが必要
+- Base64 URL-safe デコードの実装
+
+**実装内容**:
+- `extractEmailBody()` 関数（[src/services/google/gmail.ts:107-169](src/services/google/gmail.ts#L107-L169)）
+- HTML to テキスト変換（[src/services/google/gmail.ts:180-186](src/services/google/gmail.ts#L180-L186)）
+- Base64デコード（[src/services/google/gmail.ts:176-178](src/services/google/gmail.ts#L176-L178)）
+
+#### 3. ラベル一覧取得の改善
+
+**実装内容**:
+- システムラベルを除外（`type='user'`のみ）
+- 日本語での並び替え（`localeCompare`を使用）
+- 実装場所: [src/services/google/gmail.ts:33-66](src/services/google/gmail.ts#L33-L66)
+
+```typescript
+const userLabels = labels.filter(label => label.type === 'user');
+userLabels.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ja'));
+```
+
+### 開発環境とUXの改善
+
+#### 1. DevTools自動起動の無効化
+
+**問題**: 開発時にコンソールが毎回開くのはUX上好ましくない
+**解決策**:
+- 開発モード判定コードをコメントアウト
+- F12キーやメニューからのアクセスは維持
+- 実装場所: [src/main/index.ts:48-49](src/main/index.ts#L48-L49), [src/main/index.ts:81](src/main/index.ts#L81)
+
+```typescript
+// 開発モードではDevToolsを開く（コメントアウト）
+// if (isDev) {
+//   mainWindow.webContents.openDevTools();
+// }
+```
+
+#### 2. テスト機能の追加
+
+**実装内容**:
+- 設定画面にGemini APIテストボタンを追加（[src/renderer/settings.html:134-145](src/renderer/settings.html#L134-L145)）
+- Gmail接続テスト → Gemini生成テストの2段階テストが可能
+- 生成結果をTextareaで確認可能（400px高さ）
+- IPC handler実装: [src/main/index.ts:324-380](src/main/index.ts#L324-L380)
+
+**テストフロー**:
+1. Gmail接続テストでメール取得を確認
+2. 同じクエリでGemini APIテストを実行
+3. 生成された議事録をTextareaに表示
+
+### セキュリティとプライバシー
+
+#### 1. プロンプトファイルのプライバシー保護
+
+**問題**: 例文に実際の個人名（「裕美」「山田」）が含まれていた
+**解決策**: プレースホルダー（「〇〇」「△△」）に置き換え
+**修正ファイル**:
+- [prompts/minutes-guidelines.md](prompts/minutes-guidelines.md#L16-L17)
+- [src/services/google/gemini.ts:162](src/services/google/gemini.ts#L162)
+**コミット**: 9c7be36 "fix: プロンプト例から個人名を削除しプライバシー保護を強化"
+
+#### 2. .envファイルの管理
+
+**実装内容**:
+- `.gitignore`に`.env`を追加済み
+- `.env.example`でテンプレート提供
+- Gemini API キーの環境変数管理
+
+### 型定義の追加（Week 2実装）
+
+Week 2の実装で以下の型定義を追加（[src/types/index.ts](src/types/index.ts)）:
+
+```typescript
+// OAuth認証情報
+export interface OAuth2Credentials {
+  access_token: string;
+  refresh_token?: string;
+  scope: string;
+  token_type: string;
+  expiry_date: number;
+}
+
+// メールデータ
+export interface EmailData {
+  id: string;
+  subject: string;
+  from: string;
+  date: Date;
+  body: string;
+}
+
+// Gmail検索クエリ
+export interface GmailSearchQuery {
+  startDate: Date;
+  endDate: Date;
+  label: string;
+  maxResults?: number;
+}
+
+// Gemini APIリクエスト
+export interface GeminiGenerateMinutesRequest {
+  date: Date;
+  startTime: string;
+  endTime: string;
+  location: 'tokyo' | 'nagano' | 'online';
+  participants: Participant[];
+  companyName: string;
+}
+
+// 参加者情報
+export interface Participant {
+  name: string;
+  role: string;
+  profile?: ParticipantProfile;
+}
+
+export interface ParticipantProfile {
+  knowledgeLevel: 'high' | 'beginner';
+  style: 'professional' | 'casual' | 'senior_casual' | 'very_casual';
+}
+```
+
+### プロジェクト構造の追加
+
+```
+estate-minutes-generator/
+├── prompts/                        # 【新規】プロンプト管理
+│   ├── minutes-template.md         # 議事録フォーマット定義
+│   └── minutes-guidelines.md       # 作成ガイドライン
+├── src/
+│   ├── services/
+│   │   └── google/
+│   │       ├── auth.ts             # OAuth 2.0（Day 7-8完了）
+│   │       ├── gmail.ts            # Gmail API（Day 9-10完了）
+│   │       └── gemini.ts           # Gemini API（Day 11-12完了）
+```
+
+### 残課題と次ステップ
+
+#### 1. Day 13-14: Google Docs/Drive API統合
+
+**実装内容**:
+- 生成された議事録テキストをGoogle Docsに書き込む
+- フォーマット適用（見出し、箇条書き、太字など）
+- 指定フォルダ（「定例会」）への保存
+- ファイル命名規則: `YYYYMMDD_検討議事録`
+
+**実装予定ファイル**:
+- `src/services/google/docs.ts`
+- `src/services/google/drive.ts`
+
+#### 2. 型定義の整理
+
+**現状**:
+- `PropertyInfo`型は定義されているが、抽出機能は未使用
+- Phase 2で必要に応じて実装を検討
+
+**今後の方針**:
+- メールから直接Geminiに渡すアプローチが有効と判明
+- 構造化データ抽出は、特定のユースケースで必要になった場合に実装
+
+#### 3. プロンプトの継続的改善
+
+**現状の品質**:
+- 会話形式の抑制は成功
+- 「検討結果:」形式の徹底
+
+**今後の改善ポイント**:
+- 実際の使用を通じてプロンプトを調整
+- 外部MDファイル化により、調整が容易
+- A4 1〜2枚のボリューム調整の精度向上
+
+#### 4. Week 2完了チェックリスト更新
+
+以下のチェックリストを更新:
+
+### Gmail API 統合（Day 9-10）
+- [x] Gmail API クライアント初期化
+- [x] ラベルによるメール検索
+- [x] 期間指定検索
+- [x] メール本文の取得とデコード
+- [x] IPC通信の実装
+
+### Gemini API 統合（Day 11-12）
+- [x] Gemini API クライアント初期化
+- [x] プロンプトの外部ファイル化
+- [x] 議事録コンテンツ生成
+- [x] プロンプトエンジニアリング
+- [x] テスト機能の実装
+
+**注**: 当初計画の「メール本文から物件情報を抽出」は、「メールデータを直接Geminiに渡す」方式に変更
+
+### 学んだベストプラクティス
+
+1. **LLMの活用**: 構造化データ抽出よりも、生のデータを直接LLMに渡す方が柔軟
+2. **プロンプト管理**: 外部ファイル化により、イテレーションが高速化
+3. **段階的テスト**: Gmail → Gemini の2段階テストにより、問題の切り分けが容易
+4. **UX配慮**: DevToolsの自動起動無効化など、小さな改善が重要
+5. **プライバシー**: 例文やサンプルデータにも個人情報を含めない
+
+---
