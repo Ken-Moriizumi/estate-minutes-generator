@@ -155,6 +155,10 @@ function setupEventListeners(): void {
     const testGmailBtn = document.getElementById('testGmailBtn');
     testGmailBtn?.addEventListener('click', handleTestGmail);
 
+    // Gemini APIテストボタン
+    const testGeminiBtn = document.getElementById('testGeminiBtn');
+    testGeminiBtn?.addEventListener('click', handleTestGemini);
+
     // 保存ボタン
     const saveBtn = document.getElementById('saveBtn');
     saveBtn?.addEventListener('click', handleSaveSettings);
@@ -472,6 +476,81 @@ function escapeHtml(text: string): string {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Gemini APIテスト
+async function handleTestGemini(): Promise<void> {
+    const testBtn = document.getElementById('testGeminiBtn') as HTMLButtonElement;
+    const resultsDiv = document.getElementById('geminiTestResults');
+    const contentTextarea = document.getElementById('geminiTestContent') as HTMLTextAreaElement;
+
+    if (!window.electronAPI?.testGeminiApi) {
+        alert('Gemini API機能が利用できません。');
+        return;
+    }
+
+    // 認証状態を確認
+    try {
+        const authStatus = await window.electronAPI.checkAuthStatus();
+        if (!authStatus.authenticated) {
+            alert('Googleアカウントと連携していません。\n先に認証を完了してください。');
+            return;
+        }
+    } catch (error) {
+        alert('認証状態の確認に失敗しました。');
+        return;
+    }
+
+    try {
+        testBtn.disabled = true;
+        testBtn.textContent = '議事録を生成中...';
+
+        // 結果エリアを表示
+        if (resultsDiv) resultsDiv.style.display = 'block';
+        if (contentTextarea) contentTextarea.value = 'Gmailからメールを取得中...\n\n（この処理には数秒から数十秒かかる場合があります）';
+
+        // 現在の設定値を取得
+        const gmailLabel = getInputValue('gmailLabel');
+
+        // テスト用クエリ（過去1日間）
+        const today = new Date();
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+
+        const query = {
+            startDate: yesterday,
+            endDate: today,
+            label: gmailLabel,
+            maxResults: 10
+        };
+
+        // Gemini APIをテスト
+        const result = await window.electronAPI.testGeminiApi(query);
+
+        if (result.success && result.data) {
+            // 生成された議事録を表示
+            if (contentTextarea) {
+                contentTextarea.value = result.data;
+            }
+
+            // 成功メッセージ
+            alert('議事録の生成が完了しました！\n\n生成された議事録を確認し、必要に応じて prompts/*.md ファイルを調整してください。');
+        } else {
+            if (contentTextarea) {
+                contentTextarea.value = `エラーが発生しました:\n\n${result.error || '不明なエラー'}`;
+            }
+            alert('議事録の生成に失敗しました。\n\n' + (result.error || '不明なエラーが発生しました'));
+        }
+    } catch (error) {
+        console.error('Gemini API テストエラー:', error);
+        if (contentTextarea) {
+            contentTextarea.value = `エラーが発生しました:\n\n${error}`;
+        }
+        alert('議事録生成中にエラーが発生しました。');
+    } finally {
+        testBtn.disabled = false;
+        testBtn.textContent = 'Gemini APIをテスト';
+    }
 }
 
 // 設定の保存

@@ -10,7 +10,8 @@ import {
   clearAuthentication
 } from '../services/google/auth.js';
 import { searchEmails, getLabelsList } from '../services/google/gmail.js';
-import type { GmailSearchQuery } from '../types/index.js';
+import { generateMinutesFromEmails } from '../services/google/gemini.js';
+import type { GmailSearchQuery, GeminiGenerateMinutesRequest, Participant } from '../types/index.js';
 
 // ESMでの__dirnameの代替
 const __filename = fileURLToPath(import.meta.url);
@@ -44,10 +45,8 @@ function createMainWindow(): void {
   // メイン画面のHTML読み込み
   mainWindow.loadFile(path.join(__dirname, '../../src/renderer/index.html'));
 
-  // 開発モードの場合はDevToolsを開く
-  if (isDev) {
-    mainWindow.webContents.openDevTools();
-  }
+  // DevToolsは自動で開かない（F12キーまたはメニューから手動で開く）
+  // 開発時に必要な場合は「表示」→「開発者ツール」またはF12キーで開いてください
 
   // ウィンドウが閉じられたときの処理
   mainWindow.on('closed', () => {
@@ -79,10 +78,7 @@ function createSettingsWindow(): void {
   // 設定画面のHTML読み込み
   settingsWindow.loadFile(path.join(__dirname, '../../src/renderer/settings.html'));
 
-  // 開発モードの場合はDevToolsを開く
-  if (isDev) {
-    settingsWindow.webContents.openDevTools();
-  }
+  // DevToolsは自動で開かない（F12キーまたはメニューから手動で開く）
 
   // ウィンドウが閉じられたときの処理
   settingsWindow.on('closed', () => {
@@ -315,6 +311,64 @@ function setupIpcHandlers(): void {
       return { success: true, data: emails };
     } catch (error) {
       console.error('Gmail データ取得エラー:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      return { success: false, error: errorMessage };
+    }
+  });
+
+  // Gemini API テスト
+  ipcMain.handle('test-gemini-api', async (_event: any, query: GmailSearchQuery) => {
+    try {
+      console.log('Gemini API テスト開始');
+
+      // 1. Gmailからメールを取得
+      console.log('Gmail データ取得:', query);
+      const emails = await searchEmails(query);
+
+      if (emails.length === 0) {
+        return {
+          success: false,
+          error: '指定された期間・ラベルでメールが見つかりませんでした。先にGmail接続テストで確認してください。'
+        };
+      }
+
+      console.log(`${emails.length} 件のメールを取得しました`);
+
+      // 2. テスト用の参加者データを作成（設定から取得）
+      const config = ConfigManager.getAll();
+      const participants: Participant[] = [
+        {
+          name: config.participants.president,
+          role: '代表取締役社長',
+          profile: { knowledgeLevel: 'high', style: 'professional' }
+        },
+        {
+          name: config.participants.wife,
+          role: '取締役',
+          profile: { knowledgeLevel: 'beginner', style: 'casual' }
+        }
+      ];
+
+      // 3. Gemini API リクエストを構築
+      const now = new Date();
+      const geminiRequest: GeminiGenerateMinutesRequest = {
+        date: now,
+        startTime: config.defaults.startTime || '14:00',
+        endTime: config.defaults.endTime || '15:00',
+        location: config.defaults.location || 'tokyo',
+        participants,
+        propertyList: [], // 使用しない（メールから直接抽出）
+        companyName: config.company.name || '株式会社〇〇〇〇'
+      };
+
+      // 4. Gemini APIで議事録生成
+      console.log('Gemini API で議事録生成中...');
+      const minutesText = await generateMinutesFromEmails(emails, geminiRequest);
+
+      console.log('議事録生成完了');
+      return { success: true, data: minutesText };
+    } catch (error) {
+      console.error('Gemini API テストエラー:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
       return { success: false, error: errorMessage };
     }

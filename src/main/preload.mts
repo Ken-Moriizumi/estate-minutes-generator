@@ -52,6 +52,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return ipcRenderer.invoke('fetch-gmail-data', query);
     },
 
+    // Gemini API テスト
+    testGeminiApi: (query: any) => {
+        return ipcRenderer.invoke('test-gemini-api', query);
+    },
+
     // プログレス通知の受信
     onProgress: (callback: (progress: any) => void) => {
         ipcRenderer.on('generation-progress', (event: any, progress: any) => {

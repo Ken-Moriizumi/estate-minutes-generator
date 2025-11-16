@@ -132,6 +132,19 @@
                 </div>
 
                 <div class="settings-card">
+                    <h3 class="card-title">Gemini API テスト</h3>
+                    <p class="card-description">Gmail接続テストで取得したメールを使用して、Gemini APIで議事録生成をテストします</p>
+                    <div class="form-group">
+                        <button class="btn btn-secondary" id="testGeminiBtn">Gemini APIをテスト</button>
+                    </div>
+                    <div id="geminiTestResults" style="display: none; margin-top: 16px;">
+                        <h4 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;">生成された議事録</h4>
+                        <textarea id="geminiTestContent" readonly style="width: 100%; min-height: 400px; padding: 12px; font-family: 'MS Gothic', monospace; font-size: 13px; line-height: 1.8; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; resize: vertical;"></textarea>
+                        <p class="form-hint" style="margin-top: 8px;">生成された議事録の内容を確認できます。プロンプトの調整が必要な場合は prompts/*.md ファイルを編集してください。</p>
+                    </div>
+                </div>
+
+                <div class="settings-card">
                     <h3 class="card-title">Google Drive設定</h3>
                     <div class="form-group">
                         <label for="driveFolderPath" class="form-label">保存先フォルダ名</label>
