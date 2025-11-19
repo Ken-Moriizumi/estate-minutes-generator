@@ -63,7 +63,7 @@ export async function insertText(documentId: string, text: string, index: number
 }
 
 /**
- * 議事録ドキュメントを作成してテキストを挿入
+ * 議事録ドキュメントを作成してテキストを挿入（フォーマット付き）
  */
 export async function createMinutesDocument(request: DocsCreateRequest): Promise<DocsCreateResponse> {
   try {
@@ -72,8 +72,8 @@ export async function createMinutesDocument(request: DocsCreateRequest): Promise
     // 1. ドキュメントを作成
     const { documentId, documentUrl } = await createDocument(request.title);
 
-    // 2. 議事録テキストを挿入
-    await insertText(documentId, request.minutesText);
+    // 2. 議事録テキストを挿入とフォーマット適用
+    await insertFormattedMinutesText(documentId, request.minutesText);
 
     console.log('議事録ドキュメント作成完了');
 
@@ -85,6 +85,127 @@ export async function createMinutesDocument(request: DocsCreateRequest): Promise
   } catch (error) {
     console.error('議事録ドキュメント作成エラー:', error);
     throw new Error('議事録ドキュメントの作成に失敗しました。');
+  }
+}
+
+/**
+ * 議事録テキストを挿入してフォーマットを適用
+ */
+async function insertFormattedMinutesText(documentId: string, minutesText: string): Promise<void> {
+  try {
+    const auth = await getAuthenticatedClient();
+
+    // テキストを行ごとに分割
+    const lines = minutesText.split('\n');
+    const requests: any[] = [];
+    let currentIndex = 1;  // Google Docs のインデックスは1から始まる
+
+    // 各行を処理
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmedLine = line.trim();
+      const lineText = line + '\n';
+      const lineLength = lineText.length;
+
+      // テキスト挿入リクエスト
+      requests.push({
+        insertText: {
+          location: { index: currentIndex },
+          text: lineText
+        }
+      });
+
+      // フォーマット適用パターンの判定
+      if (i === 0 && trimmedLine.startsWith('株式会社')) {
+        // 1行目: 会社名 → 見出し1 + 太字 + 中央揃え
+        requests.push({
+          updateParagraphStyle: {
+            range: { startIndex: currentIndex, endIndex: currentIndex + lineLength - 1 },
+            paragraphStyle: {
+              namedStyleType: 'HEADING_1',
+              alignment: 'CENTER'
+            },
+            fields: 'namedStyleType,alignment'
+          }
+        });
+        requests.push({
+          updateTextStyle: {
+            range: { startIndex: currentIndex, endIndex: currentIndex + lineLength - 1 },
+            textStyle: { bold: true },
+            fields: 'bold'
+          }
+        });
+      } else if (i === 1 && trimmedLine === '議事録') {
+        // 2行目: 「議事録」→ 見出し2 + 太字 + 中央揃え
+        requests.push({
+          updateParagraphStyle: {
+            range: { startIndex: currentIndex, endIndex: currentIndex + lineLength - 1 },
+            paragraphStyle: {
+              namedStyleType: 'HEADING_2',
+              alignment: 'CENTER'
+            },
+            fields: 'namedStyleType,alignment'
+          }
+        });
+        requests.push({
+          updateTextStyle: {
+            range: { startIndex: currentIndex, endIndex: currentIndex + lineLength - 1 },
+            textStyle: { bold: true },
+            fields: 'bold'
+          }
+        });
+      } else if (trimmedLine.startsWith('【議題】') || trimmedLine.startsWith('【議事内容】') || trimmedLine.startsWith('【結論】')) {
+        // 見出し行 → 見出し3 + 太字
+        requests.push({
+          updateParagraphStyle: {
+            range: { startIndex: currentIndex, endIndex: currentIndex + lineLength - 1 },
+            paragraphStyle: { namedStyleType: 'HEADING_3' },
+            fields: 'namedStyleType'
+          }
+        });
+        requests.push({
+          updateTextStyle: {
+            range: { startIndex: currentIndex, endIndex: currentIndex + lineLength - 1 },
+            textStyle: { bold: true },
+            fields: 'bold'
+          }
+        });
+      } else if (trimmedLine.startsWith('日時：') || trimmedLine.startsWith('場所：') || trimmedLine.startsWith('参加者：')) {
+        // メタ情報 → 太字
+        requests.push({
+          updateTextStyle: {
+            range: { startIndex: currentIndex, endIndex: currentIndex + lineLength - 1 },
+            textStyle: { bold: true },
+            fields: 'bold'
+          }
+        });
+      } else if (trimmedLine.match(/^[0-9０-９]+\./)) {
+        // 番号付きリスト（議題など）→ 太字
+        requests.push({
+          updateTextStyle: {
+            range: { startIndex: currentIndex, endIndex: currentIndex + lineLength - 1 },
+            textStyle: { bold: true },
+            fields: 'bold'
+          }
+        });
+      }
+
+      currentIndex += lineLength;
+    }
+
+    // 全てのリクエストを一括送信
+    if (requests.length > 0) {
+      await docs.documents.batchUpdate({
+        auth,
+        documentId,
+        requestBody: { requests }
+      });
+    }
+
+    console.log(`フォーマット付きテキストを挿入しました (${lines.length}行、${requests.length}リクエスト)`);
+  } catch (error) {
+    console.error('フォーマット付きテキスト挿入エラー:', error);
+    throw new Error('Google Docsへのフォーマット適用に失敗しました。');
   }
 }
 

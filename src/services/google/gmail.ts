@@ -77,8 +77,13 @@ export async function searchEmails(query: GmailSearchQuery): Promise<EmailData[]
     const auth = await getAuthenticatedClient();
     const gmail = google.gmail({ version: 'v1', auth });
 
+    // Gmail の after: と before: は排他的（exclusive）なので、
+    // 終了日に+1して指定期間を完全に含める
+    const adjustedEndDate = new Date(query.endDate);
+    adjustedEndDate.setDate(adjustedEndDate.getDate() + 1); // 1日後
+
     // 検索クエリを構築
-    let searchQuery = `after:${formatDateForGmail(query.startDate)} before:${formatDateForGmail(query.endDate)}`;
+    let searchQuery = `after:${formatDateForGmail(query.startDate)} before:${formatDateForGmail(adjustedEndDate)}`;
 
     // ラベルが指定されている場合
     if (query.label) {

@@ -103,7 +103,23 @@
                 <section class="form-section">
                     <h2 class="section-title">📧 物件情報取得設定</h2>
 
-                    <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Gmail取得期間の設定方法</label>
+                        <div class="radio-group">
+                            <label class="radio-label">
+                                <input type="radio" name="gmailDateMode" value="auto" checked>
+                                <span class="radio-custom"></span>
+                                <span>自動計算（会議日から前後N日）</span>
+                            </label>
+                            <label class="radio-label">
+                                <input type="radio" name="gmailDateMode" value="manual">
+                                <span class="radio-custom"></span>
+                                <span>手動指定</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-row" id="gmailDateFields" style="display: none;">
                         <div class="form-group">
                             <label for="gmailStartDate" class="form-label">Gmail取得期間（開始）</label>
                             <input type="text" id="gmailStartDate" name="gmailStartDate" class="form-input datepicker" placeholder="開始日を選択">
@@ -140,6 +156,43 @@
                     <div class="progress-fill" id="progressFill"></div>
                 </div>
                 <p class="progress-message" id="progressMessage">Gmail から物件情報を取得しています...</p>
+            </div>
+        </div>
+
+        <!-- 成功ダイアログ -->
+        <div class="dialog-overlay" id="successDialog" style="display: none;">
+            <div class="dialog-container success-dialog">
+                <div class="dialog-icon success-icon">
+                    <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
+                        <circle cx="30" cy="30" r="28" stroke="#10B981" stroke-width="4"/>
+                        <path d="M17 30L26 39L43 22" stroke="#10B981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h3 class="dialog-title">議事録の生成が完了しました！</h3>
+                <p class="dialog-message">Google Docs に議事録が保存されました。</p>
+                <a id="documentUrl" href="#" target="_blank" class="document-link">ドキュメントを表示</a>
+                <div class="dialog-buttons">
+                    <button type="button" class="btn btn-secondary" id="closeSuccessBtn">閉じる</button>
+                    <button type="button" class="btn btn-primary" id="openDocBtn">ブラウザで開く</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- エラーダイアログ -->
+        <div class="dialog-overlay" id="errorDialog" style="display: none;">
+            <div class="dialog-container error-dialog">
+                <div class="dialog-icon error-icon">
+                    <svg width="60" height="60" viewBox="0 0 60 60" fill="none">
+                        <circle cx="30" cy="30" r="28" stroke="#EF4444" stroke-width="4"/>
+                        <path d="M30 18V32" stroke="#EF4444" stroke-width="4" stroke-linecap="round"/>
+                        <circle cx="30" cy="42" r="2" fill="#EF4444"/>
+                    </svg>
+                </div>
+                <h3 class="dialog-title">エラーが発生しました</h3>
+                <p class="dialog-message" id="errorMessage">議事録の生成中にエラーが発生しました。</p>
+                <div class="dialog-buttons">
+                    <button type="button" class="btn btn-primary" id="closeErrorBtn">閉じる</button>
+                </div>
             </div>
         </div>
     </div>

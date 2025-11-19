@@ -13,7 +13,8 @@ import { searchEmails, getLabelsList } from '../services/google/gmail.js';
 import { generateMinutesFromEmails } from '../services/google/gemini.js';
 import { getDriveFolderList, moveAndRenameDocument } from '../services/google/drive.js';
 import { createMinutesDocument } from '../services/google/docs.js';
-import type { GmailSearchQuery, GeminiGenerateMinutesRequest, Participant, DocsCreateRequest } from '../types/index.js';
+import { generateMinutesWithValidation } from '../services/minutesGenerator.js';
+import type { GmailSearchQuery, GeminiGenerateMinutesRequest, Participant, DocsCreateRequest, GenerateMinutesRequest } from '../types/index.js';
 
 // ESMでの__dirnameの代替
 const __filename = fileURLToPath(import.meta.url);
@@ -445,11 +446,69 @@ Google Docs APIとの連携が正常に動作している。
     }
   });
 
-  // 議事録生成（Week 3で本実装予定）
-  ipcMain.handle('generate-minutes', async (_event: any, request: any) => {
+  // 議事録生成
+  ipcMain.handle('generate-minutes', async (event: any, request: GenerateMinutesRequest) => {
     console.log('議事録生成リクエスト:', request);
-    // TODO: Week 3で実際の議事録生成処理を実装
-    return { success: true, message: '議事録生成機能はWeek 3で実装予定です' };
+
+    try {
+      // ステップ1: Gmail からメール取得
+      event.sender.send('generation-progress', {
+        step: 'fetching_emails',
+        progress: 20,
+        message: 'Gmail から物件情報を取得しています...'
+      });
+
+      // ステップ2: Gemini API で議事録生成
+      event.sender.send('generation-progress', {
+        step: 'generating_content',
+        progress: 50,
+        message: '議事録の内容を生成しています...'
+      });
+
+      // ステップ3: Google Docs 作成
+      event.sender.send('generation-progress', {
+        step: 'creating_document',
+        progress: 80,
+        message: 'Google Docs に保存しています...'
+      });
+
+      // 議事録生成の実行
+      const result = await generateMinutesWithValidation(request);
+
+      // 完了通知
+      event.sender.send('generation-complete', result);
+
+      return { success: true, data: result };
+
+    } catch (error: any) {
+      console.error('議事録生成エラー:', error);
+
+      // エラーメッセージの整形
+      let errorMessage = '議事録の生成中にエラーが発生しました。';
+
+      if (error.message) {
+        // 認証エラーの場合
+        if (error.message.includes('認証') || error.message.includes('Authentication')) {
+          errorMessage = '認証エラーが発生しました。設定画面で再認証してください。';
+        }
+        // メールが見つからない場合
+        else if (error.message.includes('メールが見つかりません')) {
+          errorMessage = '指定された期間・ラベルでメールが見つかりませんでした。検索条件を確認してください。';
+        }
+        // その他のエラー
+        else {
+          errorMessage = error.message;
+        }
+      }
+
+      // エラー通知
+      event.sender.send('generation-error', {
+        message: errorMessage,
+        code: error.code || 'UNKNOWN_ERROR'
+      });
+
+      return { success: false, error: errorMessage };
+    }
   });
 }
 

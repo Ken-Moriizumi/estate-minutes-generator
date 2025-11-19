@@ -50,10 +50,10 @@ function loadPromptFile(filePath: string): string {
 }
 
 /**
- * 参加者情報を整形
+ * 参加者情報を整形（名前のみ）
  */
 function formatParticipants(participants: Participant[]): string {
-  return participants.map(p => `${p.role} ${p.name}`).join('、');
+  return participants.map(p => p.name).join('、');
 }
 
 /**
@@ -132,7 +132,7 @@ ${guidelines}
 - 参加者: ${formattedParticipants}
 
 # 参加者詳細
-${participants.map(p => `- ${p.role} ${p.name}: 知識レベル=${p.profile?.knowledgeLevel}, スタイル=${p.profile?.style}`).join('\n')}
+${participants.map(p => `- ${p.name}: 知識レベル=${p.profile?.knowledgeLevel}, スタイル=${p.profile?.style}, 役職=${p.role}`).join('\n')}
 
 # 物件情報メール
 ${emailsContent}
@@ -167,6 +167,7 @@ ${emailsContent}
 2. メールにない情報は推測で追加しない
 3. A4用紙1〜2枚程度のボリューム（800〜1,600文字）
 4. 議事録は「だ・である調」で記載する
+5. **参加者欄には名前のみを記載**（役職は含めない）
 
 議事録の本文のみを出力してください（説明や前置きは不要です）。
 `;

@@ -1,26 +1,41 @@
 // メイン画面のTypeScript
 
 // DOMContentLoadedイベントでページの初期化
-document.addEventListener('DOMContentLoaded', () => {
-    initializePage();
+document.addEventListener('DOMContentLoaded', async () => {
+    await initializePage();
 });
 
-function initializePage(): void {
-    // 日付ピッカーの初期化
-    initializeDatePickers();
+async function initializePage(): Promise<void> {
+    // 設定を読み込み
+    let settings = null;
+    if (window.electronAPI) {
+        settings = await window.electronAPI.loadSettings();
+    }
+
+    // 日付ピッカーの初期化（設定を渡す）
+    initializeDatePickers(settings);
 
     // 場所選択による参加者自動設定
     setupLocationListener();
+
+    // Gmail日付モード切り替えリスナー
+    setupGmailDateModeListener();
 
     // フォームのイベントリスナー設定
     setupFormListeners();
 
     // 設定ボタンのリスナー
     setupSettingsButton();
+
+    // プログレスイベントリスナーの設定
+    setupProgressListeners();
+
+    // 設定を保存（後で使用するため）
+    (window as any).appSettings = settings;
 }
 
 // 日付・時刻ピッカーの初期化
-function initializeDatePickers(): void {
+function initializeDatePickers(settings: any): void {
     // Flatpickr の日本語設定
     if (typeof flatpickr !== 'undefined') {
         // 日付選択フィールド
@@ -30,13 +45,24 @@ function initializeDatePickers(): void {
             defaultDate: 'today'
         });
 
-        // 時刻選択フィールド
-        flatpickr('.timepicker', {
+        // 開始時刻フィールド
+        const defaultStartTime = settings?.defaults?.startTime || '14:00';
+        flatpickr('#startTime', {
             enableTime: true,
             noCalendar: true,
             dateFormat: 'H:i',
             time_24hr: true,
-            defaultDate: '14:00'
+            defaultDate: defaultStartTime
+        });
+
+        // 終了時刻フィールド
+        const defaultEndTime = settings?.defaults?.endTime || '15:00';
+        flatpickr('#endTime', {
+            enableTime: true,
+            noCalendar: true,
+            dateFormat: 'H:i',
+            time_24hr: true,
+            defaultDate: defaultEndTime
         });
     }
 }
@@ -86,6 +112,27 @@ function setParticipant(value: string, checked: boolean): void {
     }
 }
 
+// Gmail日付モード切り替えリスナー
+function setupGmailDateModeListener(): void {
+    const modeRadios = document.querySelectorAll('input[name="gmailDateMode"]');
+    const gmailDateFields = document.getElementById('gmailDateFields');
+
+    modeRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+            const target = e.target as HTMLInputElement;
+            const mode = target.value;
+
+            if (mode === 'manual' && gmailDateFields) {
+                // 手動指定：日付フィールドを表示
+                gmailDateFields.style.display = 'flex';
+            } else if (gmailDateFields) {
+                // 自動計算：日付フィールドを非表示
+                gmailDateFields.style.display = 'none';
+            }
+        });
+    });
+}
+
 // フォームのイベントリスナー設定
 function setupFormListeners(): void {
     const form = document.getElementById('minutesForm') as HTMLFormElement;
@@ -102,7 +149,8 @@ function setupFormListeners(): void {
     resetBtn?.addEventListener('click', () => {
         if (confirm('入力内容をリセットしますか？')) {
             form?.reset();
-            initializeDatePickers();
+            const settings = (window as any).appSettings;
+            initializeDatePickers(settings);
         }
     });
 }
@@ -120,6 +168,28 @@ function setupSettingsButton(): void {
     });
 }
 
+// プログレスイベントリスナーのセットアップ
+function setupProgressListeners(): void {
+    if (window.electronAPI) {
+        // プログレス更新イベント
+        window.electronAPI.onProgress((progress: any) => {
+            updateProgress(progress.progress, progress.message);
+        });
+
+        // 完了イベント
+        window.electronAPI.onComplete((result: any) => {
+            hideProgress();
+            showSuccessDialog(result);
+        });
+
+        // エラーイベント
+        window.electronAPI.onError((error: any) => {
+            hideProgress();
+            showErrorDialog(error.message);
+        });
+    }
+}
+
 // 議事録生成処理
 async function generateMinutes(): Promise<void> {
     const form = document.getElementById('minutesForm') as HTMLFormElement;
@@ -131,8 +201,7 @@ async function generateMinutes(): Promise<void> {
     const meetingDate = formData.get('meetingDate') as string;
     const startTime = formData.get('startTime') as string;
     const endTime = formData.get('endTime') as string;
-    const gmailStartDate = formData.get('gmailStartDate') as string;
-    const gmailEndDate = formData.get('gmailEndDate') as string;
+    const gmailDateMode = formData.get('gmailDateMode') as string;
 
     // バリデーション
     if (participants.length === 0) {
@@ -145,9 +214,33 @@ async function generateMinutes(): Promise<void> {
         return;
     }
 
-    if (!gmailStartDate || !gmailEndDate) {
-        alert('Gmail取得期間を入力してください。');
-        return;
+    // Gmail取得期間の計算または取得
+    let gmailStartDate: string;
+    let gmailEndDate: string;
+
+    if (gmailDateMode === 'auto') {
+        // 自動計算モード：会議日のN日前から会議日まで
+        const settings = (window as any).appSettings;
+        const retrievalPeriod = settings?.defaults?.retrievalPeriod || 1;
+
+        const meetingDateObj = new Date(meetingDate);
+
+        // 開始日 = 会議日 - N日
+        const startDateObj = new Date(meetingDateObj);
+        startDateObj.setDate(startDateObj.getDate() - retrievalPeriod);
+        gmailStartDate = startDateObj.toISOString().split('T')[0];
+
+        // 終了日 = 会議日（会議日当日まで）
+        gmailEndDate = meetingDate;
+    } else {
+        // 手動指定モード
+        gmailStartDate = formData.get('gmailStartDate') as string;
+        gmailEndDate = formData.get('gmailEndDate') as string;
+
+        if (!gmailStartDate || !gmailEndDate) {
+            alert('Gmail取得期間を入力してください。');
+            return;
+        }
     }
 
     // プログレス表示
@@ -198,28 +291,25 @@ function showProgress(): void {
 
     if (overlay) {
         overlay.style.display = 'flex';
+    }
+    if (progressFill) {
+        progressFill.style.width = '0%';
+    }
+    if (progressMessage) {
+        progressMessage.textContent = '処理を開始しています...';
+    }
+}
 
-        // プログレスバーアニメーション
-        let progress = 0;
-        const interval = setInterval(() => {
-            progress += 10;
-            if (progressFill) {
-                progressFill.style.width = `${progress}%`;
-            }
+// プログレス更新
+function updateProgress(percent: number, message: string): void {
+    const progressFill = document.getElementById('progressFill') as HTMLElement;
+    const progressMessage = document.getElementById('progressMessage') as HTMLElement;
 
-            // プログレスメッセージの更新
-            if (progress === 30 && progressMessage) {
-                progressMessage.textContent = 'Gmail から物件情報を取得しています...';
-            } else if (progress === 60 && progressMessage) {
-                progressMessage.textContent = '議事録の内容を生成しています...';
-            } else if (progress === 90 && progressMessage) {
-                progressMessage.textContent = 'Google Docs に保存しています...';
-            }
-
-            if (progress >= 100) {
-                clearInterval(interval);
-            }
-        }, 500);
+    if (progressFill) {
+        progressFill.style.width = `${percent}%`;
+    }
+    if (progressMessage) {
+        progressMessage.textContent = message;
     }
 }
 
@@ -233,6 +323,62 @@ function hideProgress(): void {
     }
     if (progressFill) {
         progressFill.style.width = '0%';
+    }
+}
+
+// 成功ダイアログ表示
+function showSuccessDialog(result: any): void {
+    const dialog = document.getElementById('successDialog');
+    const documentUrl = document.getElementById('documentUrl') as HTMLAnchorElement;
+    const openDocBtn = document.getElementById('openDocBtn');
+    const closeSuccessBtn = document.getElementById('closeSuccessBtn');
+
+    if (dialog && documentUrl && result.documentUrl) {
+        // URLを設定
+        documentUrl.href = result.documentUrl;
+        documentUrl.textContent = result.fileName || 'ドキュメントを開く';
+
+        // ダイアログを表示
+        dialog.style.display = 'flex';
+
+        // ブラウザで開くボタン
+        openDocBtn?.addEventListener('click', () => {
+            if (window.electronAPI && result.documentUrl) {
+                // Electronでブラウザを開く
+                window.open(result.documentUrl, '_blank');
+            }
+        }, { once: true });
+
+        // 閉じるボタン
+        closeSuccessBtn?.addEventListener('click', () => {
+            dialog.style.display = 'none';
+        }, { once: true });
+    } else {
+        // フォールバック: 単純なalert
+        alert('議事録の生成が完了しました！\n\nGoogle Docsで確認できます。');
+    }
+}
+
+// エラーダイアログ表示
+function showErrorDialog(message: string): void {
+    const dialog = document.getElementById('errorDialog');
+    const errorMessage = document.getElementById('errorMessage');
+    const closeErrorBtn = document.getElementById('closeErrorBtn');
+
+    if (dialog && errorMessage) {
+        // エラーメッセージを設定
+        errorMessage.textContent = message;
+
+        // ダイアログを表示
+        dialog.style.display = 'flex';
+
+        // 閉じるボタン
+        closeErrorBtn?.addEventListener('click', () => {
+            dialog.style.display = 'none';
+        }, { once: true });
+    } else {
+        // フォールバック: 単純なalert
+        alert(`エラー: ${message}`);
     }
 }
 

@@ -50,41 +50,45 @@ export async function generateMinutes(request: GenerateMinutesRequest): Promise<
 
     // ステップ2: 参加者情報を準備
     console.log('ステップ2: 参加者情報を準備');
-    const participants: Participant[] = request.participants.map(name => {
-      // 設定から参加者のロールを推定
-      if (name === config.participants.president) {
+    const participants: Participant[] = request.participants.map(participantKey => {
+      // participantKeyは 'president', 'wife', 'chairman' などのキー
+      // 設定から実際の名前を取得
+      const actualName = config.participants[participantKey as keyof typeof config.participants];
+
+      // キーに応じてロールとプロフィールを設定
+      if (participantKey === 'president') {
         return {
-          name,
+          name: actualName,
           role: '代表取締役社長',
           profile: { knowledgeLevel: 'high', style: 'professional' }
         };
-      } else if (name === config.participants.wife) {
+      } else if (participantKey === 'wife') {
         return {
-          name,
+          name: actualName,
           role: '取締役',
           profile: { knowledgeLevel: 'beginner', style: 'casual' }
         };
-      } else if (name === config.participants.chairman) {
+      } else if (participantKey === 'chairman') {
         return {
-          name,
+          name: actualName,
           role: '取締役会長',
           profile: { knowledgeLevel: 'high', style: 'senior_casual' }
         };
-      } else if (name === config.participants.mother) {
+      } else if (participantKey === 'mother') {
         return {
-          name,
+          name: actualName,
           role: '監査役',
           profile: { knowledgeLevel: 'beginner', style: 'very_casual' }
         };
-      } else if (name === config.participants.sister) {
+      } else if (participantKey === 'sister') {
         return {
-          name,
+          name: actualName,
           role: '取締役',
           profile: { knowledgeLevel: 'beginner', style: 'casual' }
         };
       } else {
         return {
-          name,
+          name: actualName || participantKey,
           role: '参加者',
           profile: { knowledgeLevel: 'beginner', style: 'casual' }
         };
