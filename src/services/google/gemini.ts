@@ -188,7 +188,7 @@ export async function generateMinutesFromEmails(
 
     // Geminiクライアント初期化
     const genAI = initializeGeminiClient();
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3-flash-preview' });
 
     // プロンプトファイル読み込み
     const template = loadPromptFile(TEMPLATE_PATH);

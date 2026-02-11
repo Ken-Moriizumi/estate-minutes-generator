@@ -38,11 +38,59 @@ async function initializePage(): Promise<void> {
 function initializeDatePickers(settings: any): void {
     // Flatpickr の日本語設定
     if (typeof flatpickr !== 'undefined') {
-        // 日付選択フィールド
-        flatpickr('.datepicker', {
+        // 開催日の日付選択フィールド（開催日変更時のイベントリスナー付き）
+        flatpickr('#meetingDate', {
             locale: 'ja',
             dateFormat: 'Y-m-d',
-            defaultDate: 'today'
+            defaultDate: 'today',
+            onChange: function(_selectedDates: Date[], dateStr: string) {
+                // 開催日が設定されたら、Gmail取得期間を手動モードに切り替えて同じ日付を設定
+                if (dateStr) {
+                    // 手動指定モードに切り替え
+                    const manualRadio = document.querySelector('input[name="gmailDateMode"][value="manual"]') as HTMLInputElement;
+                    if (manualRadio) {
+                        manualRadio.checked = true;
+                        // 手動指定フィールドを表示
+                        const gmailDateFields = document.getElementById('gmailDateFields');
+                        if (gmailDateFields) {
+                            gmailDateFields.style.display = 'flex';
+                        }
+                    }
+
+                    // Gmail取得期間の開始日と終了日を開催日と同じ日付に設定
+                    const gmailStartDateInput = document.getElementById('gmailStartDate') as HTMLInputElement;
+                    const gmailEndDateInput = document.getElementById('gmailEndDate') as HTMLInputElement;
+
+                    if (gmailStartDateInput) {
+                        gmailStartDateInput.value = dateStr;
+                        // flatpickrインスタンスも更新
+                        const gmailStartDatePicker = (gmailStartDateInput as any)._flatpickr;
+                        if (gmailStartDatePicker) {
+                            gmailStartDatePicker.setDate(dateStr, false);
+                        }
+                    }
+
+                    if (gmailEndDateInput) {
+                        gmailEndDateInput.value = dateStr;
+                        // flatpickrインスタンスも更新
+                        const gmailEndDatePicker = (gmailEndDateInput as any)._flatpickr;
+                        if (gmailEndDatePicker) {
+                            gmailEndDatePicker.setDate(dateStr, false);
+                        }
+                    }
+                }
+            }
+        });
+
+        // Gmail取得期間の日付選択フィールド
+        flatpickr('#gmailStartDate', {
+            locale: 'ja',
+            dateFormat: 'Y-m-d'
+        });
+
+        flatpickr('#gmailEndDate', {
+            locale: 'ja',
+            dateFormat: 'Y-m-d'
         });
 
         // 開始時刻フィールド
